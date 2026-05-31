@@ -1,0 +1,131 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:OverlayApp.Core.ViewModels;assembly=OverlayApp.Core"
+        mc:Ignorable="d"
+        x:Class="OverlayApp.Avalonia.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="Overlay 설정"
+        Width="620" Height="640"
+        WindowStartupLocation="CenterScreen">
+    <TabControl>
+        <TabItem Header="일반">
+            <ScrollViewer>
+                <StackPanel Margin="16" Spacing="20">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="위치 조정" FontWeight="SemiBold" />
+                        <TextBlock Text="조정 모드를 켜면 오버레이가 노란 테두리로 표시되고 드래그로 이동할 수 있습니다. 끄면 클릭이 아래로 통과합니다."
+                                   TextWrapping="Wrap" Opacity="0.75" FontSize="12" />
+                        <ToggleSwitch IsChecked="{Binding IsAdjustMode}"
+                                      OnContent="조정 모드 ON"
+                                      OffContent="조정 모드 OFF" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Text="투명도" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="1" Text="{Binding OpacityPercent, StringFormat={}{0}%}" Opacity="0.8" />
+                        </Grid>
+                        <Slider Minimum="10" Maximum="100" TickFrequency="5"
+                                Value="{Binding OpacityPercent}" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="토글 단축키" FontWeight="SemiBold" />
+                        <TextBlock Text="조합 키를 선택하고 키를 입력 후 적용을 누르세요. (예: O, F8, Space)"
+                                   TextWrapping="Wrap" Opacity="0.75" FontSize="12" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <CheckBox Content="Ctrl" IsChecked="{Binding HotkeyCtrl}" />
+                            <CheckBox Content="Alt" IsChecked="{Binding HotkeyAlt}" />
+                            <CheckBox Content="Shift" IsChecked="{Binding HotkeyShift}" />
+                            <CheckBox Content="Win" IsChecked="{Binding HotkeyWin}" />
+                            <TextBlock Text="+" VerticalAlignment="Center" Margin="4,0" />
+                            <TextBox Width="80" Text="{Binding HotkeyKey}" />
+                            <Button Content="적용" Command="{Binding ApplyHotkeyCommand}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding HotkeyStatus}" Opacity="0.8" FontSize="12" />
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+
+        <TabItem Header="시간">
+            <ScrollViewer>
+                <StackPanel Margin="16" Spacing="20">
+                    <CheckBox Content="24시간 형식" IsChecked="{Binding Use24Hour}" />
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="세계 시간" FontWeight="SemiBold" />
+                        <ToggleSwitch IsChecked="{Binding WorldClockEnabled}"
+                                      OnContent="세계 시간 표시"
+                                      OffContent="세계 시간 숨김" />
+                        <Button Content="+ 항목 추가" Command="{Binding AddWorldClockCommand}" HorizontalAlignment="Left" />
+                        <ItemsControl ItemsSource="{Binding WorldClockEntries}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:WorldClockEntryViewModel">
+                                    <Grid ColumnDefinitions="140,*,Auto" ColumnSpacing="8" Margin="0,4">
+                                        <TextBox Grid.Column="0" Text="{Binding Label}" PlaceholderText="라벨" />
+                                        <AutoCompleteBox Grid.Column="1"
+                                                         Text="{Binding TimeZoneId}"
+                                                         ItemsSource="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).AvailableTimeZoneIds}"
+                                                         FilterMode="ContainsOrdinal"
+                                                         PlaceholderText="TimeZone ID" />
+                                        <Button Grid.Column="2" Content="X"
+                                                Command="{Binding $parent[Window].((vm:SettingsViewModel)DataContext).RemoveWorldClockCommand}"
+                                                CommandParameter="{Binding}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+
+        <TabItem Header="날씨">
+            <ScrollViewer>
+                <StackPanel Margin="16" Spacing="20">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="공통 설정" FontWeight="SemiBold" />
+                        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="8">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="API 키" VerticalAlignment="Center" />
+                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ApiKey}" PlaceholderText="OpenWeatherMap API key" />
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="단위" VerticalAlignment="Center" />
+                            <CheckBox Grid.Row="1" Grid.Column="1" Content="화씨(°F) 사용" IsChecked="{Binding UseFahrenheit}" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="갱신 주기(분)" VerticalAlignment="Center" />
+                            <NumericUpDown Grid.Row="2" Grid.Column="1" Minimum="1" Maximum="120"
+                                           Value="{Binding RefreshMinutes}" />
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="현재 위치 날씨" FontWeight="SemiBold" />
+                        <TextBlock TextWrapping="Wrap" Opacity="0.75" FontSize="12"
+                                   Text="IP 기반 지오로케이션을 사용해 추정 좌표로 날씨를 조회합니다. 사용에 동의해야만 외부 서비스에 IP가 전송됩니다." />
+                        <CheckBox Content="위치 사용에 동의합니다" IsChecked="{Binding LocationConsent}" />
+                        <ToggleSwitch IsChecked="{Binding LocationWeatherEnabled}"
+                                      IsEnabled="{Binding LocationConsent}"
+                                      OnContent="현재 위치 날씨 표시"
+                                      OffContent="현재 위치 날씨 숨김" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="지정 지역 날씨" FontWeight="SemiBold" />
+                        <Grid ColumnDefinitions="120,*" ColumnSpacing="8">
+                            <TextBlock Grid.Column="0" Text="도시명" VerticalAlignment="Center" />
+                            <TextBox Grid.Column="1" Text="{Binding CityName}" PlaceholderText="Seoul, Tokyo, ..." />
+                        </Grid>
+                        <ToggleSwitch IsChecked="{Binding CityWeatherEnabled}"
+                                      OnContent="지정 지역 날씨 표시"
+                                      OffContent="지정 지역 날씨 숨김" />
+                    </StackPanel>
+
+                    <Button Content="지금 갱신" Command="{Binding RefreshWeatherCommand}" HorizontalAlignment="Left" />
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+    </TabControl>
+</Window>

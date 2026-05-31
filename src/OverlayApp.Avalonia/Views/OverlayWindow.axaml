@@ -1,0 +1,57 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:OverlayApp.Core.ViewModels;assembly=OverlayApp.Core"
+        mc:Ignorable="d"
+        x:Class="OverlayApp.Avalonia.Views.OverlayWindow"
+        x:DataType="vm:OverlayViewModel"
+        Title="Overlay"
+        WindowDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        SizeToContent="WidthAndHeight"
+        CanResize="False"
+        Focusable="False">
+    <Border Name="RootBorder"
+            Padding="12,8"
+            CornerRadius="8"
+            Background="#80000000"
+            BorderThickness="2"
+            PointerPressed="OnPointerPressed">
+        <Border.Styles>
+            <Style Selector="Border#RootBorder">
+                <Setter Property="BorderBrush" Value="Transparent" />
+            </Style>
+            <Style Selector="Border#RootBorder[Tag=adjust]">
+                <Setter Property="BorderBrush" Value="#FFEAB308" />
+            </Style>
+        </Border.Styles>
+        <StackPanel Spacing="2">
+            <TextBlock Text="{Binding TimeText}"
+                       Foreground="White"
+                       FontSize="28"
+                       FontWeight="SemiBold" />
+            <ItemsControl ItemsSource="{Binding WorldClockEntries}"
+                          IsVisible="{Binding WorldClockVisible}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding DisplayText}"
+                                   Foreground="#E0FFFFFF"
+                                   FontSize="13" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="{Binding LocationWeatherText}"
+                       IsVisible="{Binding LocationWeatherVisible}"
+                       Foreground="#E0FFFFFF"
+                       FontSize="13" />
+            <TextBlock Text="{Binding CityWeatherText}"
+                       IsVisible="{Binding CityWeatherVisible}"
+                       Foreground="#E0FFFFFF"
+                       FontSize="13" />
+        </StackPanel>
+    </Border>
+</Window>

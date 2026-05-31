@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OverlayApp.Avalonia/OverlayApp.Avalonia.csproj" />
+    <Project Path="src/OverlayApp.Core/OverlayApp.Core.csproj" />
+  </Folder>
+</Solution>
