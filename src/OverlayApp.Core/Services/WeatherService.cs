@@ -39,14 +39,15 @@ public sealed class WeatherService : IWeatherService
 
     private string BuildUrl(string query)
     {
-        var key = _settings.WeatherCommon.ApiKey;
+        var key = (_settings.WeatherCommon.ApiKey ?? string.Empty).Trim();
         var units = _settings.WeatherCommon.Unit == TemperatureUnit.Fahrenheit ? "imperial" : "metric";
         return $"https://api.openweathermap.org/data/2.5/weather?{query}&appid={Uri.EscapeDataString(key)}&units={units}&lang=kr";
     }
 
     private async Task<WeatherInfo> FetchAsync(string url, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(_settings.WeatherCommon.ApiKey))
+        var trimmedKey = (_settings.WeatherCommon.ApiKey ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(trimmedKey))
         {
             return new WeatherInfo { HasError = true, ErrorMessage = "API 키 없음" };
         }
@@ -56,11 +57,18 @@ public sealed class WeatherService : IWeatherService
             var resp = await _http.GetAsync(url, ct);
             if (!resp.IsSuccessStatusCode)
             {
-                return new WeatherInfo
+                var body = await resp.Content.ReadAsStringAsync(ct);
+                var hint = (int)resp.StatusCode switch
                 {
-                    HasError = true,
-                    ErrorMessage = $"HTTP {(int)resp.StatusCode}",
+                    401 => "API 키가 잘못되었거나 활성화 대기 중 (가입 후 최대 2시간)",
+                    404 => "도시명을 찾을 수 없음",
+                    429 => "호출 한도 초과",
+                    _ => null,
                 };
+                var msg = hint is null
+                    ? $"HTTP {(int)resp.StatusCode}: {Truncate(body, 120)}"
+                    : $"HTTP {(int)resp.StatusCode} — {hint}";
+                return new WeatherInfo { HasError = true, ErrorMessage = msg };
             }
 
             var data = await resp.Content.ReadFromJsonAsync<OwmResponse>(cancellationToken: ct);
@@ -83,6 +91,9 @@ public sealed class WeatherService : IWeatherService
             return new WeatherInfo { HasError = true, ErrorMessage = ex.Message };
         }
     }
+
+    private static string Truncate(string s, int max)
+        => string.IsNullOrEmpty(s) ? string.Empty : (s.Length <= max ? s : s.Substring(0, max));
 
     private sealed class OwmResponse
     {

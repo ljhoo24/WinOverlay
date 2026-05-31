@@ -8,7 +8,15 @@ namespace OverlayApp.Avalonia.Views;
 
 public partial class OverlayWindow : Window
 {
+    private const double EdgeThickness = 6;
+
     private Border? _rootBorder;
+
+    private static readonly Cursor DefaultCursor = new(StandardCursorType.Arrow);
+    private static readonly Cursor NsCursor = new(StandardCursorType.SizeNorthSouth);
+    private static readonly Cursor WeCursor = new(StandardCursorType.SizeWestEast);
+    private static readonly Cursor NwseCursor = new(StandardCursorType.TopLeftCorner);
+    private static readonly Cursor NeswCursor = new(StandardCursorType.TopRightCorner);
 
     public OverlayWindow()
     {
@@ -35,6 +43,7 @@ public partial class OverlayWindow : Window
         if (e.PropertyName == nameof(OverlayViewModel.IsAdjustMode) && DataContext is OverlayViewModel vm)
         {
             UpdateAdjustVisual(vm.IsAdjustMode);
+            if (!vm.IsAdjustMode) Cursor = DefaultCursor;
         }
     }
 
@@ -45,12 +54,58 @@ public partial class OverlayWindow : Window
         _rootBorder.Tag = isAdjustMode ? "adjust" : null;
     }
 
+    private bool IsAdjustMode => DataContext is OverlayViewModel { IsAdjustMode: true };
+
+    private void OnPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (!IsAdjustMode)
+        {
+            if (Cursor != DefaultCursor) Cursor = DefaultCursor;
+            return;
+        }
+
+        var (edge, cursor) = HitTestEdge(e);
+        Cursor = cursor;
+        // edge is consumed only on pressed event
+        _ = edge;
+    }
+
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (DataContext is OverlayViewModel vm && vm.IsAdjustMode && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        if (!IsAdjustMode) return;
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+
+        var (edge, _) = HitTestEdge(e);
+        if (edge is { } we)
+        {
+            BeginResizeDrag(we, e);
+        }
+        else
         {
             BeginMoveDrag(e);
         }
+    }
+
+    private (WindowEdge? edge, Cursor cursor) HitTestEdge(PointerEventArgs e)
+    {
+        var p = e.GetPosition(this);
+        var w = Bounds.Width;
+        var h = Bounds.Height;
+
+        var left = p.X <= EdgeThickness;
+        var right = p.X >= w - EdgeThickness;
+        var top = p.Y <= EdgeThickness;
+        var bottom = p.Y >= h - EdgeThickness;
+
+        if (top && left) return (WindowEdge.NorthWest, NwseCursor);
+        if (top && right) return (WindowEdge.NorthEast, NeswCursor);
+        if (bottom && left) return (WindowEdge.SouthWest, NeswCursor);
+        if (bottom && right) return (WindowEdge.SouthEast, NwseCursor);
+        if (top) return (WindowEdge.North, NsCursor);
+        if (bottom) return (WindowEdge.South, NsCursor);
+        if (left) return (WindowEdge.West, WeCursor);
+        if (right) return (WindowEdge.East, WeCursor);
+        return (null, DefaultCursor);
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);

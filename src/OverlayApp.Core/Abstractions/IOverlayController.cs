@@ -17,4 +17,8 @@ public interface IOverlayController
     (double X, double Y) GetPosition();
 
     void SetPosition(double x, double y);
+
+    (double Width, double Height) GetSize();
+
+    void SetSize(double width, double height);
 }

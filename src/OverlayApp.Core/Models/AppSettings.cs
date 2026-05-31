@@ -27,6 +27,10 @@ public sealed class OverlaySettings
 
     public double Y { get; set; } = 40;
 
+    public double Width { get; set; } = 220;
+
+    public double Height { get; set; } = 80;
+
     public double Opacity { get; set; } = 0.85;
 }
 

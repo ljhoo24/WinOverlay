@@ -158,7 +158,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     partial void OnApiKeyChanged(string value)
     {
-        _settings.WeatherCommon.ApiKey = value ?? string.Empty;
+        _settings.WeatherCommon.ApiKey = (value ?? string.Empty).Trim();
         Persist();
     }
 

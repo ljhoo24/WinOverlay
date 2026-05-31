@@ -13,11 +13,14 @@ public sealed class AvaloniaOverlayController : IOverlayController
 
     public event EventHandler? PositionChanged;
 
+    public event EventHandler? SizeChanged;
+
     public void Attach(OverlayWindow window)
     {
         _window = window;
         _window.Opened += OnWindowOpened;
         _window.PositionChanged += (_, _) => PositionChanged?.Invoke(this, EventArgs.Empty);
+        _window.Resized += (_, _) => SizeChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnWindowOpened(object? sender, EventArgs e)
@@ -76,5 +79,18 @@ public sealed class AvaloniaOverlayController : IOverlayController
     {
         if (_window is null) return;
         _window.Position = new PixelPoint((int)x, (int)y);
+    }
+
+    public (double Width, double Height) GetSize()
+    {
+        if (_window is null) return (0, 0);
+        return (_window.Width, _window.Height);
+    }
+
+    public void SetSize(double width, double height)
+    {
+        if (_window is null) return;
+        if (width > 0) _window.Width = width;
+        if (height > 0) _window.Height = height;
     }
 }

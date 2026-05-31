@@ -44,6 +44,7 @@ public partial class App : Application
             controller.SetOpacity(settings.Overlay.Opacity);
             controller.SetTopMost(true);
             controller.SetPosition(settings.Overlay.X, settings.Overlay.Y);
+            controller.SetSize(settings.Overlay.Width, settings.Overlay.Height);
             if (settings.Overlay.Visible)
             {
                 controller.Show();
@@ -53,13 +54,20 @@ public partial class App : Application
             // Apply after Show() so the HWND exists.
             controller.SetClickThrough(true);
 
-            // Persist position whenever the user drags the overlay (adjust mode).
+            // Persist position/size whenever the user drags or resizes the overlay (adjust mode).
             var settingsService = Services.GetRequiredService<ISettingsService>();
             controller.PositionChanged += (_, _) =>
             {
                 var pos = controller.GetPosition();
                 settings.Overlay.X = pos.X;
                 settings.Overlay.Y = pos.Y;
+                settingsService.Save(settings);
+            };
+            controller.SizeChanged += (_, _) =>
+            {
+                var sz = controller.GetSize();
+                settings.Overlay.Width = sz.Width;
+                settings.Overlay.Height = sz.Height;
                 settingsService.Save(settings);
             };
 
