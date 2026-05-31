@@ -88,7 +88,7 @@ public partial class App : Application
             var timer = Services.GetRequiredService<TimerService>();
             // Force TimerService construction so its ClockService tick subscription is alive even
             // when no view has resolved it yet.
-            _ = timer.IsRunning;
+            _ = timer.IsActive;
 
             hotkeys.HotkeyPressed += (_, e) =>
             {
@@ -97,19 +97,18 @@ public partial class App : Application
                     case "toggle-overlay":
                         ToggleOverlay();
                         break;
-                    case "timer-start":
-                        timer.Start();
+                    case "timer-toggle":
+                        timer.Toggle();
                         Services!.GetRequiredService<OverlayViewModel>().RefreshTimerVisibility();
                         break;
-                    case "timer-stop":
-                        timer.Stop();
-                        Services!.GetRequiredService<OverlayViewModel>().RefreshTimerVisibility();
+                    case "timer-visibility":
+                        ToggleTimerVisibility();
                         break;
                 }
             };
             hotkeys.Register("toggle-overlay", settings.ToggleHotkey);
-            hotkeys.Register("timer-start", settings.Timer.StartHotkey);
-            hotkeys.Register("timer-stop", settings.Timer.StopHotkey);
+            hotkeys.Register("timer-toggle", settings.Timer.ToggleHotkey);
+            hotkeys.Register("timer-visibility", settings.Timer.VisibilityHotkey);
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -146,6 +145,16 @@ public partial class App : Application
         {
             _settingsWindow.Activate();
         }
+    }
+
+    private void ToggleTimerVisibility()
+    {
+        if (Services is null) return;
+        var settings = Services.GetRequiredService<AppSettings>();
+        var settingsService = Services.GetRequiredService<ISettingsService>();
+        settings.Timer.Enabled = !settings.Timer.Enabled;
+        settingsService.Save(settings);
+        Services.GetRequiredService<OverlayViewModel>().RefreshTimerVisibility();
     }
 
     private void ToggleOverlay()

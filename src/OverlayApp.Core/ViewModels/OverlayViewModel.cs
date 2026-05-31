@@ -116,7 +116,7 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
 
     private void UpdateTimerDisplay()
     {
-        if (_settings.Timer.Enabled && _timerService.IsRunning)
+        if (_settings.Timer.Enabled && _timerService.IsActive)
         {
             TimerText = _timerService.GetDisplayText();
             TimerVisible = true;

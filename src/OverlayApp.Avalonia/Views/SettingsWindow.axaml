@@ -52,8 +52,8 @@
                     <StackPanel Spacing="12">
                         <TextBlock Text="단축키" FontWeight="SemiBold" FontSize="14" />
                         <ContentControl Content="{Binding ToggleHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
-                        <ContentControl Content="{Binding TimerStartHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
-                        <ContentControl Content="{Binding TimerStopHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
+                        <ContentControl Content="{Binding TimerToggleHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
+                        <ContentControl Content="{Binding TimerVisibilityHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
@@ -128,8 +128,8 @@
                     <CheckBox Content="알람 시 소리 재생" IsChecked="{Binding TimerSoundEnabled}" />
 
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Content="시작" Command="{Binding StartTimerCommand}" />
-                        <Button Content="중지" Command="{Binding StopTimerCommand}" />
+                        <Button Content="{Binding TimerToggleButtonText}" Command="{Binding ToggleTimerCommand}" MinWidth="80" />
+                        <Button Content="정지" Command="{Binding StopTimerCommand}" />
                         <TextBlock Text="{Binding TimerStatus}" VerticalAlignment="Center" Opacity="0.85" />
                     </StackPanel>
                 </StackPanel>

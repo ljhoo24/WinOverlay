@@ -41,13 +41,13 @@ public sealed class TimerSettings
 
     public bool SoundEnabled { get; set; } = true;
 
-    public HotkeyDefinition StartHotkey { get; set; } = new()
+    public HotkeyDefinition ToggleHotkey { get; set; } = new()
     {
         Modifiers = HotkeyModifiers.Control | HotkeyModifiers.Alt,
         Key = "T",
     };
 
-    public HotkeyDefinition StopHotkey { get; set; } = new()
+    public HotkeyDefinition VisibilityHotkey { get; set; } = new()
     {
         Modifiers = HotkeyModifiers.Control | HotkeyModifiers.Alt,
         Key = "Y",

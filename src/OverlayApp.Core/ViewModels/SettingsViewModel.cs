@@ -28,9 +28,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public HotkeyEditorViewModel ToggleHotkeyEditor { get; }
 
-    public HotkeyEditorViewModel TimerStartHotkeyEditor { get; }
+    public HotkeyEditorViewModel TimerToggleHotkeyEditor { get; }
 
-    public HotkeyEditorViewModel TimerStopHotkeyEditor { get; }
+    public HotkeyEditorViewModel TimerVisibilityHotkeyEditor { get; }
 
     [ObservableProperty]
     private bool _use24Hour;
@@ -115,19 +115,19 @@ public sealed partial class SettingsViewModel : ObservableObject
             read: () => _settings.ToggleHotkey,
             write: def => _settings.ToggleHotkey = def,
             persist: Persist);
-        TimerStartHotkeyEditor = new HotkeyEditorViewModel(
-            title: "타이머 시작",
-            hotkeyId: "timer-start",
+        TimerToggleHotkeyEditor = new HotkeyEditorViewModel(
+            title: "타이머 시작/일시정지/재개",
+            hotkeyId: "timer-toggle",
             hotkeys: _hotkeys,
-            read: () => _settings.Timer.StartHotkey,
-            write: def => _settings.Timer.StartHotkey = def,
+            read: () => _settings.Timer.ToggleHotkey,
+            write: def => _settings.Timer.ToggleHotkey = def,
             persist: Persist);
-        TimerStopHotkeyEditor = new HotkeyEditorViewModel(
-            title: "타이머 중지",
-            hotkeyId: "timer-stop",
+        TimerVisibilityHotkeyEditor = new HotkeyEditorViewModel(
+            title: "타이머 오버레이 표시 토글",
+            hotkeyId: "timer-visibility",
             hotkeys: _hotkeys,
-            read: () => _settings.Timer.StopHotkey,
-            write: def => _settings.Timer.StopHotkey = def,
+            read: () => _settings.Timer.VisibilityHotkey,
+            write: def => _settings.Timer.VisibilityHotkey = def,
             persist: Persist);
 
         _use24Hour = _settings.Clock.Use24Hour;
@@ -148,8 +148,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _timerClockHour = _settings.Timer.ClockTimeHour;
         _timerClockMinute = _settings.Timer.ClockTimeMinute;
 
-        _timerService.Changed += (_, _) => RefreshTimerStatus();
-        RefreshTimerStatus();
+        _timerService.Changed += (_, _) => OnTimerStateChanged();
+        OnTimerStateChanged();
 
         foreach (var entry in WorldClockEntries)
         {
@@ -164,7 +164,11 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private void RefreshTimerStatus()
     {
-        TimerStatus = _timerService.IsRunning ? _timerService.GetDisplayText() : "정지됨";
+        TimerStatus = _timerService.State switch
+        {
+            TimerState.Idle => "정지됨",
+            _ => _timerService.GetDisplayText(),
+        };
     }
 
     public AppSettings Settings => _settings;
@@ -312,10 +316,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void StartTimer()
+    private void ToggleTimer()
     {
-        _timerService.Start();
-        if (TimerEnabled) _overlay.RefreshTimerVisibility();
+        _timerService.Toggle();
+        _overlay.RefreshTimerVisibility();
     }
 
     [RelayCommand]
@@ -323,6 +327,19 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         _timerService.Stop();
         _overlay.RefreshTimerVisibility();
+    }
+
+    public string TimerToggleButtonText => _timerService.State switch
+    {
+        TimerState.Running => "일시정지",
+        TimerState.Paused => "재개",
+        _ => "시작",
+    };
+
+    private void OnTimerStateChanged()
+    {
+        OnPropertyChanged(nameof(TimerToggleButtonText));
+        RefreshTimerStatus();
     }
 
     [RelayCommand]
