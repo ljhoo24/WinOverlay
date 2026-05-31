@@ -7,15 +7,33 @@
         x:Class="OverlayApp.Avalonia.Views.SettingsWindow"
         x:DataType="vm:SettingsViewModel"
         Title="Overlay 설정"
-        Width="620" Height="640"
+        Width="640" Height="720"
         WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <DataTemplate x:Key="HotkeyEditorTemplate" DataType="vm:HotkeyEditorViewModel">
+            <StackPanel Spacing="6" Margin="0,4">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <CheckBox Content="Ctrl" IsChecked="{Binding Ctrl}" />
+                    <CheckBox Content="Alt" IsChecked="{Binding Alt}" />
+                    <CheckBox Content="Shift" IsChecked="{Binding Shift}" />
+                    <CheckBox Content="Win" IsChecked="{Binding Win}" />
+                    <TextBlock Text="+" VerticalAlignment="Center" Margin="4,0" />
+                    <TextBox Width="80" Text="{Binding Key}" />
+                    <Button Content="적용" Command="{Binding ApplyCommand}" />
+                </StackPanel>
+                <TextBlock Text="{Binding Status}" Opacity="0.8" FontSize="12" />
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
+
     <TabControl>
         <TabItem Header="일반">
             <ScrollViewer>
                 <StackPanel Margin="16" Spacing="20">
                     <StackPanel Spacing="6">
                         <TextBlock Text="위치 조정" FontWeight="SemiBold" />
-                        <TextBlock Text="조정 모드를 켜면 오버레이가 노란 테두리로 표시되고 드래그로 이동할 수 있습니다. 끄면 클릭이 아래로 통과합니다."
+                        <TextBlock Text="조정 모드를 켜면 오버레이가 노란 테두리로 표시되고 드래그로 이동, 모서리 드래그로 크기 조절 가능합니다. 끄면 클릭이 아래로 통과합니다."
                                    TextWrapping="Wrap" Opacity="0.75" FontSize="12" />
                         <ToggleSwitch IsChecked="{Binding IsAdjustMode}"
                                       OnContent="조정 모드 ON"
@@ -31,20 +49,11 @@
                                 Value="{Binding OpacityPercent}" />
                     </StackPanel>
 
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="토글 단축키" FontWeight="SemiBold" />
-                        <TextBlock Text="조합 키를 선택하고 키를 입력 후 적용을 누르세요. (예: O, F8, Space)"
-                                   TextWrapping="Wrap" Opacity="0.75" FontSize="12" />
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <CheckBox Content="Ctrl" IsChecked="{Binding HotkeyCtrl}" />
-                            <CheckBox Content="Alt" IsChecked="{Binding HotkeyAlt}" />
-                            <CheckBox Content="Shift" IsChecked="{Binding HotkeyShift}" />
-                            <CheckBox Content="Win" IsChecked="{Binding HotkeyWin}" />
-                            <TextBlock Text="+" VerticalAlignment="Center" Margin="4,0" />
-                            <TextBox Width="80" Text="{Binding HotkeyKey}" />
-                            <Button Content="적용" Command="{Binding ApplyHotkeyCommand}" />
-                        </StackPanel>
-                        <TextBlock Text="{Binding HotkeyStatus}" Opacity="0.8" FontSize="12" />
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="단축키" FontWeight="SemiBold" FontSize="14" />
+                        <ContentControl Content="{Binding ToggleHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
+                        <ContentControl Content="{Binding TimerStartHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
+                        <ContentControl Content="{Binding TimerStopHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
@@ -78,6 +87,50 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+
+        <TabItem Header="타이머">
+            <ScrollViewer>
+                <StackPanel Margin="16" Spacing="20">
+                    <ToggleSwitch IsChecked="{Binding TimerEnabled}"
+                                  OnContent="타이머 오버레이 표시"
+                                  OffContent="타이머 오버레이 숨김" />
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="모드" FontWeight="SemiBold" />
+                        <RadioButton GroupName="TimerMode" Content="분 타이머 (지금부터 N분 후 종료)"
+                                     IsChecked="{Binding TimerModeDuration}" />
+                        <Grid ColumnDefinitions="Auto,120,Auto" ColumnSpacing="8" Margin="24,0,0,0"
+                              IsEnabled="{Binding TimerModeDuration}">
+                            <TextBlock Grid.Column="0" Text="시간:" VerticalAlignment="Center" />
+                            <NumericUpDown Grid.Column="1" Minimum="0" Maximum="1440"
+                                           Value="{Binding TimerDurationMinutes}" />
+                            <TextBlock Grid.Column="2" Text="분" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <RadioButton GroupName="TimerMode" Content="지정 시각 알람 (오늘 또는 내일 해당 시각)"
+                                     IsChecked="{Binding TimerModeClockTime}" />
+                        <Grid ColumnDefinitions="Auto,100,Auto,100,Auto" ColumnSpacing="8" Margin="24,0,0,0"
+                              IsEnabled="{Binding TimerModeClockTime}">
+                            <TextBlock Grid.Column="0" Text="시각:" VerticalAlignment="Center" />
+                            <NumericUpDown Grid.Column="1" Minimum="0" Maximum="23"
+                                           Value="{Binding TimerClockHour}" />
+                            <TextBlock Grid.Column="2" Text="시" VerticalAlignment="Center" />
+                            <NumericUpDown Grid.Column="3" Minimum="0" Maximum="59"
+                                           Value="{Binding TimerClockMinute}" />
+                            <TextBlock Grid.Column="4" Text="분" VerticalAlignment="Center" />
+                        </Grid>
+                    </StackPanel>
+
+                    <CheckBox Content="알람 시 소리 재생" IsChecked="{Binding TimerSoundEnabled}" />
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="시작" Command="{Binding StartTimerCommand}" />
+                        <Button Content="중지" Command="{Binding StopTimerCommand}" />
+                        <TextBlock Text="{Binding TimerStatus}" VerticalAlignment="Center" Opacity="0.85" />
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>

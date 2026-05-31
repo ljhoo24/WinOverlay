@@ -53,6 +53,11 @@
                            IsVisible="{Binding CityWeatherVisible}"
                            Foreground="#E0FFFFFF"
                            FontSize="13" />
+                <TextBlock Text="{Binding TimerText}"
+                           IsVisible="{Binding TimerVisible}"
+                           Foreground="#FFFEF3C7"
+                           FontSize="13"
+                           FontWeight="SemiBold" />
             </StackPanel>
         </Viewbox>
     </Border>

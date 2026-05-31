@@ -17,6 +17,41 @@ public sealed class AppSettings
     public CityWeatherSettings CityWeather { get; set; } = new();
 
     public WeatherCommonSettings WeatherCommon { get; set; } = new();
+
+    public TimerSettings Timer { get; set; } = new();
+}
+
+public enum TimerMode
+{
+    Duration,
+    ClockTime,
+}
+
+public sealed class TimerSettings
+{
+    public bool Enabled { get; set; } = false;
+
+    public TimerMode Mode { get; set; } = TimerMode.Duration;
+
+    public int DurationMinutes { get; set; } = 5;
+
+    public int ClockTimeHour { get; set; } = 22;
+
+    public int ClockTimeMinute { get; set; } = 0;
+
+    public bool SoundEnabled { get; set; } = true;
+
+    public HotkeyDefinition StartHotkey { get; set; } = new()
+    {
+        Modifiers = HotkeyModifiers.Control | HotkeyModifiers.Alt,
+        Key = "T",
+    };
+
+    public HotkeyDefinition StopHotkey { get; set; } = new()
+    {
+        Modifiers = HotkeyModifiers.Control | HotkeyModifiers.Alt,
+        Key = "Y",
+    };
 }
 
 public sealed class OverlaySettings

@@ -12,6 +12,7 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
     private readonly ClockService _clockService;
     private readonly IOverlayController _controller;
     private readonly WeatherUpdater _weatherUpdater;
+    private readonly TimerService _timerService;
     private readonly AppSettings _settings;
 
     [ObservableProperty]
@@ -38,17 +39,25 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _worldClockVisible;
 
+    [ObservableProperty]
+    private string _timerText = string.Empty;
+
+    [ObservableProperty]
+    private bool _timerVisible;
+
     public ObservableCollection<WorldClockEntryViewModel> WorldClockEntries { get; } = new();
 
     public OverlayViewModel(
         ClockService clockService,
         IOverlayController controller,
         WeatherUpdater weatherUpdater,
+        TimerService timerService,
         AppSettings settings)
     {
         _clockService = clockService;
         _controller = controller;
         _weatherUpdater = weatherUpdater;
+        _timerService = timerService;
         _settings = settings;
         Use24Hour = settings.Clock.Use24Hour;
 
@@ -60,9 +69,11 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
 
         _clockService.Tick += OnTick;
         _weatherUpdater.Updated += OnWeatherUpdated;
+        _timerService.Changed += OnTimerChanged;
         UpdateTime();
         UpdateWorldClocks();
         UpdateWeatherDisplay();
+        UpdateTimerDisplay();
         _clockService.Start();
         _weatherUpdater.Start();
     }
@@ -71,6 +82,8 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
     {
         WorldClockVisible = _settings.WorldClock.Enabled && WorldClockEntries.Count > 0;
     }
+
+    public void RefreshTimerVisibility() => UpdateTimerDisplay();
 
     partial void OnIsAdjustModeChanged(bool value)
     {
@@ -85,6 +98,8 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
 
     private void OnWeatherUpdated(object? sender, EventArgs e) => UpdateWeatherDisplay();
 
+    private void OnTimerChanged(object? sender, EventArgs e) => UpdateTimerDisplay();
+
     private void UpdateTime()
     {
         var format = Use24Hour ? "HH:mm:ss" : "h:mm:ss tt";
@@ -96,6 +111,19 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
         foreach (var entry in WorldClockEntries)
         {
             entry.UpdateTime(Use24Hour);
+        }
+    }
+
+    private void UpdateTimerDisplay()
+    {
+        if (_settings.Timer.Enabled && _timerService.IsRunning)
+        {
+            TimerText = _timerService.GetDisplayText();
+            TimerVisible = true;
+        }
+        else
+        {
+            TimerVisible = false;
         }
     }
 
@@ -142,5 +170,6 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
     {
         _clockService.Tick -= OnTick;
         _weatherUpdater.Updated -= OnWeatherUpdated;
+        _timerService.Changed -= OnTimerChanged;
     }
 }

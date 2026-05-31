@@ -17,6 +17,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IGlobalHotkeyService _hotkeys;
     private readonly OverlayViewModel _overlay;
     private readonly WeatherUpdater _weatherUpdater;
+    private readonly TimerService _timerService;
     private readonly AppSettings _settings;
 
     [ObservableProperty]
@@ -25,23 +26,11 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _isAdjustMode;
 
-    [ObservableProperty]
-    private bool _hotkeyCtrl;
+    public HotkeyEditorViewModel ToggleHotkeyEditor { get; }
 
-    [ObservableProperty]
-    private bool _hotkeyAlt;
+    public HotkeyEditorViewModel TimerStartHotkeyEditor { get; }
 
-    [ObservableProperty]
-    private bool _hotkeyShift;
-
-    [ObservableProperty]
-    private bool _hotkeyWin;
-
-    [ObservableProperty]
-    private string _hotkeyKey = "O";
-
-    [ObservableProperty]
-    private string _hotkeyStatus = string.Empty;
+    public HotkeyEditorViewModel TimerStopHotkeyEditor { get; }
 
     [ObservableProperty]
     private bool _use24Hour;
@@ -70,9 +59,34 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _worldClockEnabled;
 
+    [ObservableProperty]
+    private bool _timerEnabled;
+
+    [ObservableProperty]
+    private bool _timerSoundEnabled;
+
+    [ObservableProperty]
+    private bool _timerModeDuration;
+
+    [ObservableProperty]
+    private bool _timerModeClockTime;
+
+    [ObservableProperty]
+    private int _timerDurationMinutes;
+
+    [ObservableProperty]
+    private int _timerClockHour;
+
+    [ObservableProperty]
+    private int _timerClockMinute;
+
+    [ObservableProperty]
+    private string _timerStatus = "정지됨";
+
     public ObservableCollection<WorldClockEntryViewModel> WorldClockEntries => _overlay.WorldClockEntries;
 
-    public IReadOnlyList<string> AvailableTimeZoneIds { get; } = TimeZoneInfo.GetSystemTimeZones().Select(z => z.Id).OrderBy(s => s).ToList();
+    public IReadOnlyList<string> AvailableTimeZoneIds { get; } =
+        TimeZoneInfo.GetSystemTimeZones().Select(z => z.Id).OrderBy(s => s).ToList();
 
     public SettingsViewModel(
         ISettingsService settingsService,
@@ -80,6 +94,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         IGlobalHotkeyService hotkeys,
         OverlayViewModel overlay,
         WeatherUpdater weatherUpdater,
+        TimerService timerService,
         AppSettings settings)
     {
         _settingsService = settingsService;
@@ -87,18 +102,33 @@ public sealed partial class SettingsViewModel : ObservableObject
         _hotkeys = hotkeys;
         _overlay = overlay;
         _weatherUpdater = weatherUpdater;
+        _timerService = timerService;
         _settings = settings;
 
         _opacityPercent = (int)(_settings.Overlay.Opacity * 100);
         _isAdjustMode = _overlay.IsAdjustMode;
 
-        var mods = _settings.ToggleHotkey.Modifiers;
-        _hotkeyCtrl = mods.HasFlag(HotkeyModifiers.Control);
-        _hotkeyAlt = mods.HasFlag(HotkeyModifiers.Alt);
-        _hotkeyShift = mods.HasFlag(HotkeyModifiers.Shift);
-        _hotkeyWin = mods.HasFlag(HotkeyModifiers.Win);
-        _hotkeyKey = _settings.ToggleHotkey.Key;
-        _hotkeyStatus = $"현재: {_settings.ToggleHotkey}";
+        ToggleHotkeyEditor = new HotkeyEditorViewModel(
+            title: "오버레이 표시/숨김",
+            hotkeyId: "toggle-overlay",
+            hotkeys: _hotkeys,
+            read: () => _settings.ToggleHotkey,
+            write: def => _settings.ToggleHotkey = def,
+            persist: Persist);
+        TimerStartHotkeyEditor = new HotkeyEditorViewModel(
+            title: "타이머 시작",
+            hotkeyId: "timer-start",
+            hotkeys: _hotkeys,
+            read: () => _settings.Timer.StartHotkey,
+            write: def => _settings.Timer.StartHotkey = def,
+            persist: Persist);
+        TimerStopHotkeyEditor = new HotkeyEditorViewModel(
+            title: "타이머 중지",
+            hotkeyId: "timer-stop",
+            hotkeys: _hotkeys,
+            read: () => _settings.Timer.StopHotkey,
+            write: def => _settings.Timer.StopHotkey = def,
+            persist: Persist);
 
         _use24Hour = _settings.Clock.Use24Hour;
         _useFahrenheit = _settings.WeatherCommon.Unit == TemperatureUnit.Fahrenheit;
@@ -110,6 +140,17 @@ public sealed partial class SettingsViewModel : ObservableObject
         _cityName = _settings.CityWeather.CityName;
         _worldClockEnabled = _settings.WorldClock.Enabled;
 
+        _timerEnabled = _settings.Timer.Enabled;
+        _timerSoundEnabled = _settings.Timer.SoundEnabled;
+        _timerModeDuration = _settings.Timer.Mode == TimerMode.Duration;
+        _timerModeClockTime = _settings.Timer.Mode == TimerMode.ClockTime;
+        _timerDurationMinutes = _settings.Timer.DurationMinutes;
+        _timerClockHour = _settings.Timer.ClockTimeHour;
+        _timerClockMinute = _settings.Timer.ClockTimeMinute;
+
+        _timerService.Changed += (_, _) => RefreshTimerStatus();
+        RefreshTimerStatus();
+
         foreach (var entry in WorldClockEntries)
         {
             entry.Changed += OnWorldClockEntryChanged;
@@ -119,6 +160,11 @@ public sealed partial class SettingsViewModel : ObservableObject
             SyncWorldClockToSettings();
             _overlay.RefreshWorldClockVisibility();
         };
+    }
+
+    private void RefreshTimerStatus()
+    {
+        TimerStatus = _timerService.IsRunning ? _timerService.GetDisplayText() : "정지됨";
     }
 
     public AppSettings Settings => _settings;
@@ -173,7 +219,6 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         if (value && !LocationConsent)
         {
-            // Don't enable without consent — revert and let the user check consent first.
             LocationWeatherEnabled = false;
             return;
         }
@@ -187,7 +232,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.LocationWeather.ConsentGranted = value;
         if (!value)
         {
-            // Consent revoked → disable location weather and clear cached coords.
             _settings.LocationWeather.Enabled = false;
             _settings.LocationWeather.LastLatitude = null;
             _settings.LocationWeather.LastLongitude = null;
@@ -216,6 +260,77 @@ public sealed partial class SettingsViewModel : ObservableObject
         Persist();
     }
 
+    partial void OnTimerEnabledChanged(bool value)
+    {
+        _settings.Timer.Enabled = value;
+        _overlay.RefreshTimerVisibility();
+        Persist();
+    }
+
+    partial void OnTimerSoundEnabledChanged(bool value)
+    {
+        _settings.Timer.SoundEnabled = value;
+        Persist();
+    }
+
+    partial void OnTimerModeDurationChanged(bool value)
+    {
+        if (value)
+        {
+            if (TimerModeClockTime) TimerModeClockTime = false;
+            _settings.Timer.Mode = TimerMode.Duration;
+            Persist();
+        }
+    }
+
+    partial void OnTimerModeClockTimeChanged(bool value)
+    {
+        if (value)
+        {
+            if (TimerModeDuration) TimerModeDuration = false;
+            _settings.Timer.Mode = TimerMode.ClockTime;
+            Persist();
+        }
+    }
+
+    partial void OnTimerDurationMinutesChanged(int value)
+    {
+        _settings.Timer.DurationMinutes = System.Math.Max(0, value);
+        Persist();
+    }
+
+    partial void OnTimerClockHourChanged(int value)
+    {
+        _settings.Timer.ClockTimeHour = System.Math.Clamp(value, 0, 23);
+        Persist();
+    }
+
+    partial void OnTimerClockMinuteChanged(int value)
+    {
+        _settings.Timer.ClockTimeMinute = System.Math.Clamp(value, 0, 59);
+        Persist();
+    }
+
+    [RelayCommand]
+    private void StartTimer()
+    {
+        _timerService.Start();
+        if (TimerEnabled) _overlay.RefreshTimerVisibility();
+    }
+
+    [RelayCommand]
+    private void StopTimer()
+    {
+        _timerService.Stop();
+        _overlay.RefreshTimerVisibility();
+    }
+
+    [RelayCommand]
+    private async System.Threading.Tasks.Task RefreshWeather()
+    {
+        await _weatherUpdater.TriggerRefresh();
+    }
+
     [RelayCommand]
     private void AddWorldClock()
     {
@@ -240,41 +355,6 @@ public sealed partial class SettingsViewModel : ObservableObject
             .Select(vm => new WorldClockEntry { Label = vm.Label, TimeZoneId = vm.TimeZoneId })
             .ToList();
         Persist();
-    }
-
-    [RelayCommand]
-    private void ApplyHotkey()
-    {
-        var mods = HotkeyModifiers.None;
-        if (HotkeyCtrl) mods |= HotkeyModifiers.Control;
-        if (HotkeyAlt) mods |= HotkeyModifiers.Alt;
-        if (HotkeyShift) mods |= HotkeyModifiers.Shift;
-        if (HotkeyWin) mods |= HotkeyModifiers.Win;
-
-        var def = new HotkeyDefinition
-        {
-            Modifiers = mods,
-            Key = (HotkeyKey ?? string.Empty).Trim(),
-        };
-
-        _hotkeys.Unregister("toggle-overlay");
-        if (_hotkeys.Register("toggle-overlay", def))
-        {
-            _settings.ToggleHotkey = def;
-            Persist();
-            HotkeyStatus = $"등록됨: {def}";
-        }
-        else
-        {
-            _hotkeys.Register("toggle-overlay", _settings.ToggleHotkey);
-            HotkeyStatus = $"등록 실패 (다른 앱이 사용 중일 수 있음). 현재: {_settings.ToggleHotkey}";
-        }
-    }
-
-    [RelayCommand]
-    private async System.Threading.Tasks.Task RefreshWeather()
-    {
-        await _weatherUpdater.TriggerRefresh();
     }
 
     private void Persist() => _settingsService.Save(_settings);

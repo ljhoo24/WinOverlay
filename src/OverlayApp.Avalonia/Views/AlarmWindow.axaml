@@ -1,0 +1,21 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="OverlayApp.Avalonia.Views.AlarmWindow"
+        Title="알람"
+        Width="360" Height="180"
+        Topmost="True"
+        ShowInTaskbar="True"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        WindowDecorations="None">
+    <Border Padding="20" Background="#FF1F2937">
+        <Grid RowDefinitions="Auto,*,Auto" RowSpacing="12">
+            <TextBlock Grid.Row="0" Name="TitleText" FontSize="22" FontWeight="SemiBold" Foreground="#FFFEF3C7" />
+            <TextBlock Grid.Row="1" Name="MessageText" FontSize="14" Foreground="White" TextWrapping="Wrap" VerticalAlignment="Center" />
+            <Button Grid.Row="2" Content="확인" HorizontalAlignment="Right" Padding="20,6" Click="OnConfirm" />
+        </Grid>
+    </Border>
+</Window>

@@ -9,6 +9,7 @@ using OverlayApp.Avalonia.Platform;
 using OverlayApp.Avalonia.Views;
 using OverlayApp.Core.Abstractions;
 using OverlayApp.Core.Models;
+using OverlayApp.Core.Services;
 using OverlayApp.Core.ViewModels;
 
 namespace OverlayApp.Avalonia;
@@ -82,13 +83,33 @@ public partial class App : Application
             tray.DoubleClicked += (_, _) => ShowSettings();
             tray.MenuItemClicked += OnTrayMenuClicked;
 
-            // Global toggle hotkey.
+            // Global hotkeys.
             var hotkeys = Services.GetRequiredService<IGlobalHotkeyService>();
+            var timer = Services.GetRequiredService<TimerService>();
+            // Force TimerService construction so its ClockService tick subscription is alive even
+            // when no view has resolved it yet.
+            _ = timer.IsRunning;
+
             hotkeys.HotkeyPressed += (_, e) =>
             {
-                if (e.Id == "toggle-overlay") ToggleOverlay();
+                switch (e.Id)
+                {
+                    case "toggle-overlay":
+                        ToggleOverlay();
+                        break;
+                    case "timer-start":
+                        timer.Start();
+                        Services!.GetRequiredService<OverlayViewModel>().RefreshTimerVisibility();
+                        break;
+                    case "timer-stop":
+                        timer.Stop();
+                        Services!.GetRequiredService<OverlayViewModel>().RefreshTimerVisibility();
+                        break;
+                }
             };
             hotkeys.Register("toggle-overlay", settings.ToggleHotkey);
+            hotkeys.Register("timer-start", settings.Timer.StartHotkey);
+            hotkeys.Register("timer-stop", settings.Timer.StopHotkey);
         }
 
         base.OnFrameworkInitializationCompleted();
