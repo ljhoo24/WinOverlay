@@ -24,7 +24,7 @@
 
                     <StackPanel Spacing="6">
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0" Text="투명도" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="0" Text="불투명도" FontWeight="SemiBold" />
                             <TextBlock Grid.Column="1" Text="{Binding OpacityPercent, StringFormat={}{0}%}" Opacity="0.8" />
                         </Grid>
                         <Slider Minimum="10" Maximum="100" TickFrequency="5"

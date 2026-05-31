@@ -17,7 +17,7 @@
         Focusable="False">
     <Border Name="RootBorder"
             CornerRadius="8"
-            Background="#80000000"
+            Background="Black"
             BorderThickness="2"
             PointerPressed="OnPointerPressed"
             PointerMoved="OnPointerMoved">
