@@ -56,6 +56,38 @@ dotnet build OverlayApp.slnx
 dotnet run --project src/OverlayApp.Avalonia
 ```
 
+## 배포 빌드 (설치 마법사)
+
+[Velopack](https://github.com/velopack/velopack) 기반 self-contained 단일 파일 설치 마법사를 생성합니다 — 타깃 PC에 .NET 8 미설치라도 실행 가능합니다.
+
+전제: `vpk` 글로벌 툴 설치.
+
+```powershell
+dotnet tool install -g vpk
+```
+
+빌드:
+
+```powershell
+.\tools\build-release.ps1                  # csproj의 <Version> 사용
+.\tools\build-release.ps1 -Version 0.2.0   # 명시
+```
+
+산출물 위치 — `dist/`:
+
+| 파일 | 용도 |
+|---|---|
+| `WinOverlay-win-Setup.exe` | **설치 마법사** — 더블클릭 설치, 시작 메뉴/바탕화면 단축키, 제어판 제거 항목 등록 |
+| `WinOverlay-win-Portable.zip` | 압축 풀어 그대로 실행 (휴대용) |
+| `WinOverlay-0.1.0-full.nupkg`, `RELEASES`, `*.json` | Velopack 자동 업데이트용 패키지 |
+
+스크립트는 다음 두 단계를 수행합니다.
+
+1. `dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true` → `publish/`
+2. `vpk pack` → `dist/`
+
+자동 업데이트 서버 연동은 아직 구성하지 않았습니다(Velopack 패키지는 만들지만 업로드 위치 미설정). 추후 GitHub Releases에 `dist/`를 업로드하면 `UpdateManager`를 통해 자동 업데이트 가능합니다.
+
 ## 사용
 
 - **첫 실행**: 트레이에 아이콘이 표시되고, 오버레이가 좌상단에 나타납니다.

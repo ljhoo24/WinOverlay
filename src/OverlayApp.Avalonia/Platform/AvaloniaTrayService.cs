@@ -48,7 +48,7 @@ public sealed class AvaloniaTrayService : ITrayService
 
     private static WindowIcon LoadIcon()
     {
-        using var stream = AssetLoader.Open(new Uri("avares://OverlayApp.Avalonia/Assets/tray.png"));
+        using var stream = AssetLoader.Open(new Uri("avares://WinOverlay/Assets/tray.png"));
         return new WindowIcon(stream);
     }
 

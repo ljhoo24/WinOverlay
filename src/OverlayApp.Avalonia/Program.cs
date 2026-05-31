@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Avalonia;
+using Velopack;
 
 namespace OverlayApp.Avalonia;
 
@@ -11,6 +12,10 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        // Velopack: handle install/update/uninstall hooks before anything UI-related.
+        // When invoked by the updater, this returns after processing and the process exits.
+        VelopackApp.Build().Run();
+
         using var mutex = new Mutex(initiallyOwned: true, SingleInstanceMutexName, out var createdNew);
         if (!createdNew)
         {
