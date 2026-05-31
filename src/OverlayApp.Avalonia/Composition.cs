@@ -28,6 +28,7 @@ public static class Composition
         services.AddSingleton<IOverlayController>(sp => sp.GetRequiredService<AvaloniaOverlayController>());
         services.AddSingleton<IGlobalHotkeyService, Win32GlobalHotkeyService>();
         services.AddSingleton<ITrayService, AvaloniaTrayService>();
+        services.AddSingleton<IStartupService, WindowsStartupService>();
 
         // Core services.
         services.AddSingleton<System.Net.Http.HttpClient>(_ =>

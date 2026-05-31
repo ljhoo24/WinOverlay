@@ -4,6 +4,8 @@ namespace OverlayApp.Core.Models;
 
 public sealed class AppSettings
 {
+    public bool StartWithWindows { get; set; } = false;
+
     public OverlaySettings Overlay { get; set; } = new();
 
     public HotkeyDefinition ToggleHotkey { get; set; } = new();

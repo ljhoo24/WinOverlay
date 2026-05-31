@@ -32,6 +32,15 @@
             <ScrollViewer>
                 <StackPanel Margin="16" Spacing="20">
                     <StackPanel Spacing="6">
+                        <TextBlock Text="시작 동작" FontWeight="SemiBold" />
+                        <ToggleSwitch IsChecked="{Binding StartWithWindows}"
+                                      OnContent="Windows 시작 시 자동 실행"
+                                      OffContent="Windows 시작 시 실행 안 함" />
+                        <TextBlock Text="현재 사용자의 레지스트리 Run 항목으로 등록됩니다 (관리자 권한 불필요)."
+                                   TextWrapping="Wrap" Opacity="0.7" FontSize="12" />
+                    </StackPanel>
+
+                    <StackPanel Spacing="6">
                         <TextBlock Text="위치 조정" FontWeight="SemiBold" />
                         <TextBlock Text="조정 모드를 켜면 오버레이가 노란 테두리로 표시되고 드래그로 이동, 모서리 드래그로 크기 조절 가능합니다. 끄면 클릭이 아래로 통과합니다."
                                    TextWrapping="Wrap" Opacity="0.75" FontSize="12" />

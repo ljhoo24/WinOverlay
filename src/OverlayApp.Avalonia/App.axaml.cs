@@ -109,6 +109,14 @@ public partial class App : Application
             hotkeys.Register("toggle-overlay", settings.ToggleHotkey);
             hotkeys.Register("timer-toggle", settings.Timer.ToggleHotkey);
             hotkeys.Register("timer-visibility", settings.Timer.VisibilityHotkey);
+
+            // If auto-start was previously enabled, refresh the registry value with the current
+            // exe path — Velopack updates can change the path across versions.
+            var startup = Services.GetRequiredService<IStartupService>();
+            if (settings.StartWithWindows)
+            {
+                startup.Enable();
+            }
         }
 
         base.OnFrameworkInitializationCompleted();

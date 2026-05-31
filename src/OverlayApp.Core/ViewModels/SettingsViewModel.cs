@@ -15,10 +15,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly IOverlayController _controller;
     private readonly IGlobalHotkeyService _hotkeys;
+    private readonly IStartupService _startup;
     private readonly OverlayViewModel _overlay;
     private readonly WeatherUpdater _weatherUpdater;
     private readonly TimerService _timerService;
     private readonly AppSettings _settings;
+
+    [ObservableProperty]
+    private bool _startWithWindows;
 
     [ObservableProperty]
     private int _opacityPercent;
@@ -92,6 +96,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         ISettingsService settingsService,
         IOverlayController controller,
         IGlobalHotkeyService hotkeys,
+        IStartupService startup,
         OverlayViewModel overlay,
         WeatherUpdater weatherUpdater,
         TimerService timerService,
@@ -100,11 +105,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settingsService = settingsService;
         _controller = controller;
         _hotkeys = hotkeys;
+        _startup = startup;
         _overlay = overlay;
         _weatherUpdater = weatherUpdater;
         _timerService = timerService;
         _settings = settings;
 
+        // 설정과 실제 레지스트리 상태가 어긋났다면 설정 쪽을 진실로 본다 (다음 변경 시 재동기화).
+        _startWithWindows = _settings.StartWithWindows;
         _opacityPercent = (int)(_settings.Overlay.Opacity * 100);
         _isAdjustMode = _overlay.IsAdjustMode;
 
@@ -172,6 +180,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     public AppSettings Settings => _settings;
+
+    partial void OnStartWithWindowsChanged(bool value)
+    {
+        if (value) _startup.Enable();
+        else _startup.Disable();
+        _settings.StartWithWindows = value;
+        Persist();
+    }
 
     partial void OnOpacityPercentChanged(int value)
     {
