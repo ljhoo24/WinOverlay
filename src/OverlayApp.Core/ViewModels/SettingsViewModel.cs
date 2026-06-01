@@ -72,24 +72,11 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _timerSoundEnabled;
 
     [ObservableProperty]
-    private bool _timerModeDuration;
-
-    [ObservableProperty]
-    private bool _timerModeClockTime;
-
-    [ObservableProperty]
-    private int _timerDurationMinutes;
-
-    [ObservableProperty]
-    private int _timerClockHour;
-
-    [ObservableProperty]
-    private int _timerClockMinute;
-
-    [ObservableProperty]
     private string _timerStatus = "정지됨";
 
     public ObservableCollection<WorldClockEntryViewModel> WorldClockEntries => _overlay.WorldClockEntries;
+
+    public ObservableCollection<TimerInstanceViewModel> TimerItems { get; } = new();
 
     public IReadOnlyList<string> AvailableTimeZoneIds { get; } =
         TimeZoneInfo.GetSystemTimeZones().Select(z => z.Id).OrderBy(s => s).ToList();
@@ -113,7 +100,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         _timerService = timerService;
         _settings = settings;
 
-        // 설정과 실제 레지스트리 상태가 어긋났다면 설정 쪽을 진실로 본다 (다음 변경 시 재동기화).
         _startWithWindows = _settings.StartWithWindows;
         _opacityPercent = (int)(_settings.Overlay.Opacity * 100);
         _isAdjustMode = _overlay.IsAdjustMode;
@@ -133,7 +119,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             write: def => _settings.OpenSettingsHotkey = def,
             persist: Persist);
         TimerToggleHotkeyEditor = new HotkeyEditorViewModel(
-            title: "타이머 시작/일시정지/재개",
+            title: "타이머 일괄 시작/일시정지/재개",
             hotkeyId: "timer-toggle",
             hotkeys: _hotkeys,
             read: () => _settings.Timer.ToggleHotkey,
@@ -159,11 +145,15 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         _timerEnabled = _settings.Timer.Enabled;
         _timerSoundEnabled = _settings.Timer.SoundEnabled;
-        _timerModeDuration = _settings.Timer.Mode == TimerMode.Duration;
-        _timerModeClockTime = _settings.Timer.Mode == TimerMode.ClockTime;
-        _timerDurationMinutes = _settings.Timer.DurationMinutes;
-        _timerClockHour = _settings.Timer.ClockTimeHour;
-        _timerClockMinute = _settings.Timer.ClockTimeMinute;
+
+        // TimerItems collection 초기화 (저장된 항목 로드)
+        foreach (var spec in _settings.Timer.Items)
+        {
+            var vm = new TimerInstanceViewModel(spec);
+            vm.Changed += OnTimerItemChanged;
+            TimerItems.Add(vm);
+        }
+        TimerItems.CollectionChanged += (_, _) => SyncTimerToSettings();
 
         _timerService.Changed += (_, _) => OnTimerStateChanged();
         OnTimerStateChanged();
@@ -181,11 +171,39 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private void RefreshTimerStatus()
     {
-        TimerStatus = _timerService.State switch
+        var rts = _timerService.Runtimes;
+        if (rts.Count == 0) { TimerStatus = "등록된 타이머 없음"; return; }
+        if (_timerService.HasAnyRunning)
         {
-            TimerState.Idle => "정지됨",
-            _ => _timerService.GetDisplayText(),
-        };
+            var running = rts.Count(r => r.State == TimerState.Running);
+            TimerStatus = $"진행 중: {running}개";
+        }
+        else if (_timerService.HasAnyPaused)
+        {
+            var paused = rts.Count(r => r.State == TimerState.Paused);
+            TimerStatus = $"일시정지: {paused}개";
+        }
+        else
+        {
+            TimerStatus = $"정지됨 (등록 {rts.Count}개)";
+        }
+    }
+
+    public string TimerToggleButtonText
+    {
+        get
+        {
+            if (_timerService.HasAnyRunning) return "일시정지";
+            if (_timerService.HasAnyPaused) return "재개";
+            return "시작";
+        }
+    }
+
+    private void OnTimerStateChanged()
+    {
+        OnPropertyChanged(nameof(TimerToggleButtonText));
+        RefreshTimerStatus();
+        _overlay.RefreshTimerVisibility();
     }
 
     public AppSettings Settings => _settings;
@@ -302,41 +320,29 @@ public sealed partial class SettingsViewModel : ObservableObject
         Persist();
     }
 
-    partial void OnTimerModeDurationChanged(bool value)
+    [RelayCommand]
+    private void AddTimerItem()
     {
-        if (value)
-        {
-            if (TimerModeClockTime) TimerModeClockTime = false;
-            _settings.Timer.Mode = TimerMode.Duration;
-            Persist();
-        }
+        var spec = new TimerInstance { Label = "새 타이머" };
+        var vm = new TimerInstanceViewModel(spec);
+        vm.Changed += OnTimerItemChanged;
+        TimerItems.Add(vm);
     }
 
-    partial void OnTimerModeClockTimeChanged(bool value)
+    [RelayCommand]
+    private void RemoveTimerItem(TimerInstanceViewModel? item)
     {
-        if (value)
-        {
-            if (TimerModeDuration) TimerModeDuration = false;
-            _settings.Timer.Mode = TimerMode.ClockTime;
-            Persist();
-        }
+        if (item is null) return;
+        item.Changed -= OnTimerItemChanged;
+        TimerItems.Remove(item);
     }
 
-    partial void OnTimerDurationMinutesChanged(int value)
-    {
-        _settings.Timer.DurationMinutes = System.Math.Max(0, value);
-        Persist();
-    }
+    private void OnTimerItemChanged(object? sender, EventArgs e) => SyncTimerToSettings();
 
-    partial void OnTimerClockHourChanged(int value)
+    private void SyncTimerToSettings()
     {
-        _settings.Timer.ClockTimeHour = System.Math.Clamp(value, 0, 23);
-        Persist();
-    }
-
-    partial void OnTimerClockMinuteChanged(int value)
-    {
-        _settings.Timer.ClockTimeMinute = System.Math.Clamp(value, 0, 59);
+        _settings.Timer.Items = TimerItems.Select(vm => vm.ToModel()).ToList();
+        _timerService.Sync();
         Persist();
     }
 
@@ -344,27 +350,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     private void ToggleTimer()
     {
         _timerService.Toggle();
-        _overlay.RefreshTimerVisibility();
     }
 
     [RelayCommand]
     private void StopTimer()
     {
-        _timerService.Stop();
-        _overlay.RefreshTimerVisibility();
-    }
-
-    public string TimerToggleButtonText => _timerService.State switch
-    {
-        TimerState.Running => "일시정지",
-        TimerState.Paused => "재개",
-        _ => "시작",
-    };
-
-    private void OnTimerStateChanged()
-    {
-        OnPropertyChanged(nameof(TimerToggleButtonText));
-        RefreshTimerStatus();
+        _timerService.StopAll();
     }
 
     [RelayCommand]

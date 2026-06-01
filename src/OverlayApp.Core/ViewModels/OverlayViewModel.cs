@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using OverlayApp.Core.Abstractions;
 using OverlayApp.Core.Models;
@@ -40,12 +41,11 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
     private bool _worldClockVisible;
 
     [ObservableProperty]
-    private string _timerText = string.Empty;
-
-    [ObservableProperty]
     private bool _timerVisible;
 
     public ObservableCollection<WorldClockEntryViewModel> WorldClockEntries { get; } = new();
+
+    public ObservableCollection<TimerLineViewModel> TimerLines { get; } = new();
 
     public OverlayViewModel(
         ClockService clockService,
@@ -116,15 +116,35 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
 
     private void UpdateTimerDisplay()
     {
-        if (_settings.Timer.Enabled && _timerService.IsActive)
+        if (!_settings.Timer.Enabled)
         {
-            TimerText = _timerService.GetDisplayText();
-            TimerVisible = true;
-        }
-        else
-        {
+            if (TimerLines.Count > 0) TimerLines.Clear();
             TimerVisible = false;
+            return;
         }
+
+        // Diff-merge: keep only active runtimes, in-place text update for existing lines.
+        var active = _timerService.Runtimes.Where(r => r.State != TimerState.Idle).ToList();
+        var activeIds = active.Select(r => r.Spec.Id).ToHashSet();
+
+        // 제거: 더 이상 active가 아닌 줄
+        for (var i = TimerLines.Count - 1; i >= 0; i--)
+        {
+            if (!activeIds.Contains(TimerLines[i].Id)) TimerLines.RemoveAt(i);
+        }
+
+        foreach (var rt in active)
+        {
+            var line = TimerLines.FirstOrDefault(l => l.Id == rt.Spec.Id);
+            if (line is null)
+            {
+                line = new TimerLineViewModel(rt.Spec.Id);
+                TimerLines.Add(line);
+            }
+            line.Text = rt.GetDisplayText();
+        }
+
+        TimerVisible = TimerLines.Count > 0;
     }
 
     private void UpdateWeatherDisplay()

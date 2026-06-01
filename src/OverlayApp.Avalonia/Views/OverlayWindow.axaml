@@ -54,11 +54,17 @@
                            IsVisible="{Binding CityWeatherVisible}"
                            Foreground="#E0FFFFFF"
                            FontSize="13" />
-                <TextBlock Text="{Binding TimerText}"
-                           IsVisible="{Binding TimerVisible}"
-                           Foreground="#FFFEF3C7"
-                           FontSize="13"
-                           FontWeight="SemiBold" />
+                <ItemsControl ItemsSource="{Binding TimerLines}"
+                              IsVisible="{Binding TimerVisible}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Text}"
+                                       Foreground="#FFFEF3C7"
+                                       FontSize="13"
+                                       FontWeight="SemiBold" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </Viewbox>
     </Border>

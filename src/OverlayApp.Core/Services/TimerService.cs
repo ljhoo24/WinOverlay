@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using OverlayApp.Core.Abstractions;
 using OverlayApp.Core.Models;
 
@@ -11,133 +13,83 @@ public enum TimerState
     Paused,
 }
 
-public sealed class TimerService : IDisposable
+public sealed class TimerRuntime
 {
-    private readonly ClockService _clock;
-    private readonly IAlarmService _alarm;
-    private readonly AppSettings _settings;
+    public TimerInstance Spec { get; internal set; }
 
-    private TimerState _state = TimerState.Idle;
-    private TimerMode _currentMode;
-    private DateTime? _targetEnd;
-    private TimeSpan? _frozenRemaining;
-    private string _modeLabel = string.Empty;
+    public TimerState State { get; internal set; } = TimerState.Idle;
 
-    public TimerState State => _state;
+    internal DateTime? TargetEnd;
+    internal TimeSpan? FrozenRemaining;
 
-    public bool IsActive => _state != TimerState.Idle;
+    public TimerRuntime(TimerInstance spec) => Spec = spec;
 
-    public event EventHandler? Changed;
-
-    public TimerService(ClockService clock, IAlarmService alarm, AppSettings settings)
+    internal string GetModeLabel()
     {
-        _clock = clock;
-        _alarm = alarm;
-        _settings = settings;
-        _clock.Tick += OnTick;
+        if (!string.IsNullOrWhiteSpace(Spec.Label)) return Spec.Label;
+        return Spec.Mode == TimerMode.Duration
+            ? $"{Spec.DurationMinutes}분 타이머"
+            : $"{Spec.ClockTimeHour:D2}:{Spec.ClockTimeMinute:D2} 알람";
     }
 
-    /// <summary>
-    /// 단일 단축키 토글: Idle→시작, Running→일시정지, Paused→재개.
-    /// </summary>
-    public void Toggle()
+    internal void StartFresh()
     {
-        switch (_state)
-        {
-            case TimerState.Idle:
-                StartFresh();
-                break;
-            case TimerState.Running:
-                Pause();
-                break;
-            case TimerState.Paused:
-                Resume();
-                break;
-        }
-    }
-
-    public void StartFresh()
-    {
-        var s = _settings.Timer;
         var now = DateTime.Now;
-        _currentMode = s.Mode;
-
-        if (s.Mode == TimerMode.Duration)
+        if (Spec.Mode == TimerMode.Duration)
         {
-            var minutes = System.Math.Max(0, s.DurationMinutes);
-            _targetEnd = now.AddMinutes(minutes);
-            _modeLabel = $"{minutes}분 타이머";
+            TargetEnd = now.AddMinutes(System.Math.Max(0, Spec.DurationMinutes));
         }
         else
         {
             var target = new DateTime(now.Year, now.Month, now.Day,
-                System.Math.Clamp(s.ClockTimeHour, 0, 23),
-                System.Math.Clamp(s.ClockTimeMinute, 0, 59), 0);
+                System.Math.Clamp(Spec.ClockTimeHour, 0, 23),
+                System.Math.Clamp(Spec.ClockTimeMinute, 0, 59), 0);
             if (target <= now) target = target.AddDays(1);
-            _targetEnd = target;
-            _modeLabel = target.ToString("HH:mm 알람");
+            TargetEnd = target;
         }
-
-        _frozenRemaining = null;
-        _state = TimerState.Running;
-        Changed?.Invoke(this, EventArgs.Empty);
+        FrozenRemaining = null;
+        State = TimerState.Running;
     }
 
-    public void Pause()
+    internal void Pause()
     {
-        if (_state != TimerState.Running || _targetEnd is not { } end) return;
-
+        if (State != TimerState.Running || TargetEnd is not { } end) return;
         var remaining = end - DateTime.Now;
         if (remaining < TimeSpan.Zero) remaining = TimeSpan.Zero;
-        _frozenRemaining = remaining;
-
-        // Duration 모드는 target을 잊는다 (resume 시 now 기준으로 재계산).
-        // ClockTime 모드는 target 시각을 그대로 유지한다 (resume 시 그 시각까지의 남은 시간이 자동 계산).
-        if (_currentMode == TimerMode.Duration)
-        {
-            _targetEnd = null;
-        }
-
-        _state = TimerState.Paused;
-        Changed?.Invoke(this, EventArgs.Empty);
+        FrozenRemaining = remaining;
+        // Duration은 target을 잊고 resume 시 재계산. ClockTime은 target 유지.
+        if (Spec.Mode == TimerMode.Duration) TargetEnd = null;
+        State = TimerState.Paused;
     }
 
-    public void Resume()
+    internal void Resume()
     {
-        if (_state != TimerState.Paused) return;
-
-        if (_currentMode == TimerMode.Duration && _frozenRemaining is { } r)
+        if (State != TimerState.Paused) return;
+        if (Spec.Mode == TimerMode.Duration && FrozenRemaining is { } r)
         {
-            _targetEnd = DateTime.Now.Add(r);
+            TargetEnd = DateTime.Now.Add(r);
         }
-        // ClockTime: _targetEnd는 pause 동안 유지되었으므로 그대로 사용.
-
-        _frozenRemaining = null;
-        _state = TimerState.Running;
-        Changed?.Invoke(this, EventArgs.Empty);
+        FrozenRemaining = null;
+        State = TimerState.Running;
     }
 
-    /// <summary>완전 중단: Idle로 되돌린다. 단축키엔 매핑되지 않고 설정창 "정지" 버튼 전용.</summary>
-    public void Stop()
+    internal void ResetToIdle()
     {
-        if (_state == TimerState.Idle) return;
-        _state = TimerState.Idle;
-        _targetEnd = null;
-        _frozenRemaining = null;
-        _modeLabel = string.Empty;
-        Changed?.Invoke(this, EventArgs.Empty);
+        State = TimerState.Idle;
+        TargetEnd = null;
+        FrozenRemaining = null;
     }
 
     public string GetDisplayText()
     {
-        if (_state == TimerState.Idle) return string.Empty;
+        if (State == TimerState.Idle) return string.Empty;
 
         TimeSpan remaining;
-        if (_state == TimerState.Running && _targetEnd is { } end)
+        if (State == TimerState.Running && TargetEnd is { } end)
         {
             remaining = end - DateTime.Now;
         }
-        else if (_state == TimerState.Paused && _frozenRemaining is { } fr)
+        else if (State == TimerState.Paused && FrozenRemaining is { } fr)
         {
             remaining = fr;
         }
@@ -151,27 +103,129 @@ public sealed class TimerService : IDisposable
             ? $"{(int)remaining.TotalHours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}"
             : $"{remaining.Minutes:D2}:{remaining.Seconds:D2}";
 
-        return _state == TimerState.Paused
-            ? $"{_modeLabel}  일시정지 {formatted}"
-            : $"{_modeLabel}  남은 {formatted}";
+        var prefix = GetModeLabel();
+        return State == TimerState.Paused
+            ? $"{prefix}  일시정지 {formatted}"
+            : $"{prefix}  남은 {formatted}";
+    }
+}
+
+/// <summary>
+/// 여러 개의 타이머를 동시 관리. 단축키 토글은 일괄 동작.
+/// </summary>
+public sealed class TimerService : IDisposable
+{
+    private readonly ClockService _clock;
+    private readonly IAlarmService _alarm;
+    private readonly AppSettings _settings;
+
+    private readonly Dictionary<string, TimerRuntime> _runtimes = new();
+
+    public event EventHandler? Changed;
+
+    public TimerService(ClockService clock, IAlarmService alarm, AppSettings settings)
+    {
+        _clock = clock;
+        _alarm = alarm;
+        _settings = settings;
+        Sync();
+        _clock.Tick += OnTick;
+    }
+
+    public IReadOnlyCollection<TimerRuntime> Runtimes => _runtimes.Values;
+
+    public bool HasAnyActive => _runtimes.Values.Any(r => r.State != TimerState.Idle);
+
+    public bool HasAnyRunning => _runtimes.Values.Any(r => r.State == TimerState.Running);
+
+    public bool HasAnyPaused => _runtimes.Values.Any(r => r.State == TimerState.Paused);
+
+    /// <summary>설정의 Items 목록과 내부 runtime 맵을 동기화. 추가/제거된 항목 반영.</summary>
+    public void Sync()
+    {
+        var ids = _settings.Timer.Items.Select(i => i.Id).ToHashSet();
+        foreach (var key in _runtimes.Keys.ToList())
+        {
+            if (!ids.Contains(key)) _runtimes.Remove(key);
+        }
+        foreach (var item in _settings.Timer.Items)
+        {
+            if (_runtimes.TryGetValue(item.Id, out var rt))
+            {
+                rt.Spec = item; // label/mode/시간 변경 가능
+            }
+            else
+            {
+                _runtimes[item.Id] = new TimerRuntime(item);
+            }
+        }
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// 일괄 토글:
+    /// - 하나라도 Running → 모두 Pause
+    /// - 모두 Paused (또는 Paused+Idle 섞임) → Paused를 Resume
+    /// - 모두 Idle → 모두 StartFresh
+    /// </summary>
+    public void Toggle()
+    {
+        Sync();
+        if (_runtimes.Count == 0) return;
+
+        if (HasAnyRunning)
+        {
+            foreach (var rt in _runtimes.Values) rt.Pause();
+        }
+        else if (HasAnyPaused)
+        {
+            foreach (var rt in _runtimes.Values) rt.Resume();
+        }
+        else
+        {
+            foreach (var rt in _runtimes.Values) rt.StartFresh();
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void StartAll()
+    {
+        Sync();
+        foreach (var rt in _runtimes.Values) rt.StartFresh();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void StopAll()
+    {
+        if (!HasAnyActive) return;
+        foreach (var rt in _runtimes.Values) rt.ResetToIdle();
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnTick(object? sender, EventArgs e)
     {
-        if (_state == TimerState.Idle) return;
+        if (!HasAnyActive) return;
+
+        var toFire = new List<TimerRuntime>();
+        foreach (var rt in _runtimes.Values)
+        {
+            if (rt.State == TimerState.Running && rt.TargetEnd is { } end && DateTime.Now >= end)
+            {
+                toFire.Add(rt);
+            }
+        }
 
         Changed?.Invoke(this, EventArgs.Empty);
 
-        if (_state == TimerState.Running && _targetEnd is { } end && DateTime.Now >= end)
+        foreach (var rt in toFire)
         {
-            var firedLabel = _modeLabel;
-            _alarm.Fire("타이머 종료", $"{firedLabel} ({DateTime.Now:HH:mm:ss})", _settings.Timer.SoundEnabled);
-            _state = TimerState.Idle;
-            _targetEnd = null;
-            _frozenRemaining = null;
-            _modeLabel = string.Empty;
-            Changed?.Invoke(this, EventArgs.Empty);
+            var label = rt.GetModeLabel();
+            _alarm.Fire("타이머 종료", $"{label} ({DateTime.Now:HH:mm:ss})", _settings.Timer.SoundEnabled);
+            rt.ResetToIdle();
         }
+
+        if (toFire.Count > 0) Changed?.Invoke(this, EventArgs.Empty);
     }
 
     public void Dispose()

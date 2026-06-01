@@ -88,7 +88,7 @@ public partial class App : Application
             var timer = Services.GetRequiredService<TimerService>();
             // Force TimerService construction so its ClockService tick subscription is alive even
             // when no view has resolved it yet.
-            _ = timer.IsActive;
+            _ = timer.HasAnyActive;
 
             hotkeys.HotkeyPressed += (_, e) =>
             {

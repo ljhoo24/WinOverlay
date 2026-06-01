@@ -35,9 +35,11 @@ public enum TimerMode
     ClockTime,
 }
 
-public sealed class TimerSettings
+public sealed class TimerInstance
 {
-    public bool Enabled { get; set; } = false;
+    public string Id { get; set; } = System.Guid.NewGuid().ToString("N");
+
+    public string Label { get; set; } = string.Empty;
 
     public TimerMode Mode { get; set; } = TimerMode.Duration;
 
@@ -46,8 +48,15 @@ public sealed class TimerSettings
     public int ClockTimeHour { get; set; } = 22;
 
     public int ClockTimeMinute { get; set; } = 0;
+}
+
+public sealed class TimerSettings
+{
+    public bool Enabled { get; set; } = false;
 
     public bool SoundEnabled { get; set; } = true;
+
+    public List<TimerInstance> Items { get; set; } = new();
 
     public HotkeyDefinition ToggleHotkey { get; set; } = new()
     {
