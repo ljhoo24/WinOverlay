@@ -20,7 +20,8 @@
             Background="Black"
             BorderThickness="2"
             PointerPressed="OnPointerPressed"
-            PointerMoved="OnPointerMoved">
+            PointerMoved="OnPointerMoved"
+            FontFamily="Consolas, Cascadia Mono, Courier New, monospace">
         <Border.Styles>
             <Style Selector="Border#RootBorder">
                 <Setter Property="BorderBrush" Value="Transparent" />
