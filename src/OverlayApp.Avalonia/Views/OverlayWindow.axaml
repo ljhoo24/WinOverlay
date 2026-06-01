@@ -14,14 +14,14 @@
         Topmost="True"
         MinWidth="80" MinHeight="40"
         Width="220" Height="80"
-        Focusable="False">
+        Focusable="False"
+        FontFamily="Consolas, Cascadia Mono, Courier New">
     <Border Name="RootBorder"
             CornerRadius="8"
             Background="Black"
             BorderThickness="2"
             PointerPressed="OnPointerPressed"
-            PointerMoved="OnPointerMoved"
-            FontFamily="Consolas, Cascadia Mono, Courier New, monospace">
+            PointerMoved="OnPointerMoved">
         <Border.Styles>
             <Style Selector="Border#RootBorder">
                 <Setter Property="BorderBrush" Value="Transparent" />
