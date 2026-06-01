@@ -109,10 +109,13 @@ public partial class App : Application
                         break;
                 }
             };
-            RegisterIfEnabled(hotkeys, "toggle-overlay", settings.ToggleHotkey);
-            RegisterIfEnabled(hotkeys, "open-settings", settings.OpenSettingsHotkey);
-            RegisterIfEnabled(hotkeys, "timer-toggle", settings.Timer.ToggleHotkey);
-            RegisterIfEnabled(hotkeys, "timer-visibility", settings.Timer.VisibilityHotkey);
+            if (settings.HotkeysEnabled)
+            {
+                hotkeys.Register("toggle-overlay", settings.ToggleHotkey);
+                hotkeys.Register("open-settings", settings.OpenSettingsHotkey);
+                hotkeys.Register("timer-toggle", settings.Timer.ToggleHotkey);
+                hotkeys.Register("timer-visibility", settings.Timer.VisibilityHotkey);
+            }
 
             // If auto-start was previously enabled, refresh the registry value with the current
             // exe path — Velopack updates can change the path across versions.
@@ -157,11 +160,6 @@ public partial class App : Application
         {
             _settingsWindow.Activate();
         }
-    }
-
-    private static void RegisterIfEnabled(IGlobalHotkeyService hotkeys, string id, HotkeyDefinition def)
-    {
-        if (def.Enabled) hotkeys.Register(id, def);
     }
 
     private void ToggleTimerVisibility()

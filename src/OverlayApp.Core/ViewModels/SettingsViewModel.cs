@@ -25,6 +25,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool _startWithWindows;
 
     [ObservableProperty]
+    private bool _hotkeysEnabled;
+
+    [ObservableProperty]
     private int _opacityPercent;
 
     [ObservableProperty]
@@ -101,37 +104,43 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings = settings;
 
         _startWithWindows = _settings.StartWithWindows;
+        _hotkeysEnabled = _settings.HotkeysEnabled;
         _opacityPercent = (int)(_settings.Overlay.Opacity * 100);
         _isAdjustMode = _overlay.IsAdjustMode;
 
+        Func<bool> isMaster = () => _hotkeysEnabled;
         ToggleHotkeyEditor = new HotkeyEditorViewModel(
             title: "오버레이 표시/숨김",
             hotkeyId: "toggle-overlay",
             hotkeys: _hotkeys,
             read: () => _settings.ToggleHotkey,
             write: def => _settings.ToggleHotkey = def,
-            persist: Persist);
+            persist: Persist,
+            isMasterEnabled: isMaster);
         OpenSettingsHotkeyEditor = new HotkeyEditorViewModel(
             title: "설정창 열기",
             hotkeyId: "open-settings",
             hotkeys: _hotkeys,
             read: () => _settings.OpenSettingsHotkey,
             write: def => _settings.OpenSettingsHotkey = def,
-            persist: Persist);
+            persist: Persist,
+            isMasterEnabled: isMaster);
         TimerToggleHotkeyEditor = new HotkeyEditorViewModel(
             title: "타이머 일괄 시작/일시정지/재개",
             hotkeyId: "timer-toggle",
             hotkeys: _hotkeys,
             read: () => _settings.Timer.ToggleHotkey,
             write: def => _settings.Timer.ToggleHotkey = def,
-            persist: Persist);
+            persist: Persist,
+            isMasterEnabled: isMaster);
         TimerVisibilityHotkeyEditor = new HotkeyEditorViewModel(
             title: "타이머 오버레이 표시 토글",
             hotkeyId: "timer-visibility",
             hotkeys: _hotkeys,
             read: () => _settings.Timer.VisibilityHotkey,
             write: def => _settings.Timer.VisibilityHotkey = def,
-            persist: Persist);
+            persist: Persist,
+            isMasterEnabled: isMaster);
 
         _use24Hour = _settings.Clock.Use24Hour;
         _useFahrenheit = _settings.WeatherCommon.Unit == TemperatureUnit.Fahrenheit;
@@ -214,6 +223,46 @@ public sealed partial class SettingsViewModel : ObservableObject
         else _startup.Disable();
         _settings.StartWithWindows = value;
         Persist();
+    }
+
+    partial void OnHotkeysEnabledChanged(bool value)
+    {
+        _settings.HotkeysEnabled = value;
+
+        // 4개 단축키 일괄 등록/해제.
+        var ids = new (string id, HotkeyDefinition def)[]
+        {
+            ("toggle-overlay", _settings.ToggleHotkey),
+            ("open-settings", _settings.OpenSettingsHotkey),
+            ("timer-toggle", _settings.Timer.ToggleHotkey),
+            ("timer-visibility", _settings.Timer.VisibilityHotkey),
+        };
+
+        foreach (var (id, def) in ids)
+        {
+            _hotkeys.Unregister(id);
+            if (value) _hotkeys.Register(id, def);
+        }
+
+        // 에디터 상태 텍스트 갱신
+        foreach (var editor in new[] { ToggleHotkeyEditor, OpenSettingsHotkeyEditor, TimerToggleHotkeyEditor, TimerVisibilityHotkeyEditor })
+        {
+            editor.Status = value
+                ? $"등록됨: {EditorDef(editor)}"
+                : $"마스터 OFF — 저장만: {EditorDef(editor)}";
+        }
+
+        Persist();
+
+        static string EditorDef(HotkeyEditorViewModel ed)
+        {
+            var mods = HotkeyModifiers.None;
+            if (ed.Ctrl) mods |= HotkeyModifiers.Control;
+            if (ed.Alt) mods |= HotkeyModifiers.Alt;
+            if (ed.Shift) mods |= HotkeyModifiers.Shift;
+            if (ed.Win) mods |= HotkeyModifiers.Win;
+            return new HotkeyDefinition { Modifiers = mods, Key = ed.Key }.ToString();
+        }
     }
 
     partial void OnOpacityPercentChanged(int value)

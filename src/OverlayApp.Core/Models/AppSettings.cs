@@ -6,6 +6,8 @@ public sealed class AppSettings
 {
     public bool StartWithWindows { get; set; } = false;
 
+    public bool HotkeysEnabled { get; set; } = true;
+
     public OverlaySettings Overlay { get; set; } = new();
 
     public HotkeyDefinition ToggleHotkey { get; set; } = new();

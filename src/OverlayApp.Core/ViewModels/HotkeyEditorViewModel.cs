@@ -13,10 +13,10 @@ public sealed partial class HotkeyEditorViewModel : ObservableObject
     private readonly Func<HotkeyDefinition> _read;
     private readonly Action<HotkeyDefinition> _write;
     private readonly Action _persist;
+    private readonly Func<bool> _isMasterEnabled;
 
     public string Title { get; }
 
-    [ObservableProperty] private bool _enabled;
     [ObservableProperty] private bool _ctrl;
     [ObservableProperty] private bool _alt;
     [ObservableProperty] private bool _shift;
@@ -30,7 +30,8 @@ public sealed partial class HotkeyEditorViewModel : ObservableObject
         IGlobalHotkeyService hotkeys,
         Func<HotkeyDefinition> read,
         Action<HotkeyDefinition> write,
-        Action persist)
+        Action persist,
+        Func<bool> isMasterEnabled)
     {
         Title = title;
         _hotkeyId = hotkeyId;
@@ -38,43 +39,15 @@ public sealed partial class HotkeyEditorViewModel : ObservableObject
         _read = read;
         _write = write;
         _persist = persist;
+        _isMasterEnabled = isMasterEnabled;
 
         var def = read();
-        _enabled = def.Enabled;
         _ctrl = def.Modifiers.HasFlag(HotkeyModifiers.Control);
         _alt = def.Modifiers.HasFlag(HotkeyModifiers.Alt);
         _shift = def.Modifiers.HasFlag(HotkeyModifiers.Shift);
         _win = def.Modifiers.HasFlag(HotkeyModifiers.Win);
         _key = def.Key;
-        _status = $"현재: {def}";
-    }
-
-    /// <summary>
-    /// 켜기/끄기 토글은 별도 명령 없이 즉시 반영한다.
-    /// </summary>
-    partial void OnEnabledChanged(bool value)
-    {
-        var current = _read();
-        current.Enabled = value;
-        _write(current);
-
-        _hotkeys.Unregister(_hotkeyId);
-        if (value)
-        {
-            if (_hotkeys.Register(_hotkeyId, current))
-            {
-                Status = $"등록됨: {current}";
-            }
-            else
-            {
-                Status = $"등록 실패 (다른 앱이 사용 중일 수 있음). 현재: {current}";
-            }
-        }
-        else
-        {
-            Status = $"사용 안 함: {current}";
-        }
-        _persist();
+        _status = _isMasterEnabled() ? $"현재: {def}" : $"마스터 OFF — 저장만: {def}";
     }
 
     [RelayCommand]
@@ -88,19 +61,21 @@ public sealed partial class HotkeyEditorViewModel : ObservableObject
 
         var def = new HotkeyDefinition
         {
-            Enabled = Enabled,
             Modifiers = mods,
             Key = (Key ?? string.Empty).Trim(),
         };
 
         _hotkeys.Unregister(_hotkeyId);
-        if (!def.Enabled)
+
+        if (!_isMasterEnabled())
         {
+            // 마스터 OFF 상태에선 OS 등록은 건너뛰고 설정만 저장
             _write(def);
             _persist();
-            Status = $"사용 안 함: {def}";
+            Status = $"마스터 OFF — 저장만: {def}";
             return;
         }
+
         if (_hotkeys.Register(_hotkeyId, def))
         {
             _write(def);

@@ -12,11 +12,8 @@
     <Window.Resources>
         <DataTemplate x:Key="HotkeyEditorTemplate" DataType="vm:HotkeyEditorViewModel">
             <StackPanel Spacing="6" Margin="0,4">
-                <Grid ColumnDefinitions="*,Auto">
-                    <TextBlock Grid.Column="0" Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <CheckBox Grid.Column="1" Content="사용" IsChecked="{Binding Enabled}" />
-                </Grid>
-                <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding Enabled}">
+                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
                     <CheckBox Content="Ctrl" IsChecked="{Binding Ctrl}" />
                     <CheckBox Content="Alt" IsChecked="{Binding Alt}" />
                     <CheckBox Content="Shift" IsChecked="{Binding Shift}" />
@@ -63,10 +60,17 @@
 
                     <StackPanel Spacing="12">
                         <TextBlock Text="단축키" FontWeight="SemiBold" FontSize="14" />
-                        <ContentControl Content="{Binding ToggleHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
-                        <ContentControl Content="{Binding OpenSettingsHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
-                        <ContentControl Content="{Binding TimerToggleHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
-                        <ContentControl Content="{Binding TimerVisibilityHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
+                        <ToggleSwitch IsChecked="{Binding HotkeysEnabled}"
+                                      OnContent="단축키 사용"
+                                      OffContent="단축키 사용 안 함 (다른 앱과 충돌 시)" />
+                        <TextBlock Text="끄면 아래 모든 단축키가 OS에 등록되지 않습니다. 조합은 그대로 저장되어 다시 켜면 복원됩니다."
+                                   TextWrapping="Wrap" Opacity="0.75" FontSize="12" />
+                        <StackPanel Spacing="12" IsEnabled="{Binding HotkeysEnabled}">
+                            <ContentControl Content="{Binding ToggleHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
+                            <ContentControl Content="{Binding OpenSettingsHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
+                            <ContentControl Content="{Binding TimerToggleHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
+                            <ContentControl Content="{Binding TimerVisibilityHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
