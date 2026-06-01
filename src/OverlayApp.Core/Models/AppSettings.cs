@@ -27,6 +27,26 @@ public sealed class AppSettings
     public WeatherCommonSettings WeatherCommon { get; set; } = new();
 
     public TimerSettings Timer { get; set; } = new();
+
+    public SystemMetricsSettings System { get; set; } = new();
+}
+
+public sealed class SystemMetricsSettings
+{
+    public bool Enabled { get; set; } = false;
+
+    public bool ShowMemory { get; set; } = true;
+
+    public bool ShowCpuLoad { get; set; } = true;
+
+    public bool ShowCpuTemp { get; set; } = false;
+
+    public bool ShowGpuTemp { get; set; } = false;
+
+    public int RefreshSeconds { get; set; } = 2;
+
+    /// <summary>온도 항목(CPU/GPU)을 하나라도 켰는지.</summary>
+    public bool AnyTempRequested => ShowCpuTemp || ShowGpuTemp;
 }
 
 public enum TimerMode

@@ -129,6 +129,15 @@ dotnet tool install -g vpk
 - **재작성**: `OverlayApp.Avalonia/` 내 XAML View, `App`/`Program` 부트스트랩, `AvaloniaTrayService` (WPF에선 NotifyIcon 계열 라이브러리로 교체), `AvaloniaOverlayController`의 창 핸들 획득 방식, `AvaloniaUiDispatcher`
 - **검증 우선**: "반투명 + 클릭 통과 토글" 최소 동작이 새 View에서 잘 도는지부터 확인 후 나머지 기능을 쌓기를 권장
 
+## 시스템 지표 (CPU/GPU/메모리)
+
+설정 → 시스템 탭에서 켭니다.
+
+- **메모리 사용률, CPU 사용률**: 관리자 권한 없이 동작 (Win32 `GlobalMemoryStatusEx` / `GetSystemTimes`).
+- **CPU 온도, GPU 온도/사용률**: [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)로 읽으며 **관리자 권한 필요**. 권한이 없으면 오버레이에 "온도 권한필요"로 표시되고, 설정 탭의 **"관리자 권한으로 재시작"** 버튼으로 권한을 올릴 수 있습니다(UAC).
+- 부팅 자동시작은 관리자 권한이 아니므로, 온도까지 자동으로 보려면 매 세션 한 번 재시작이 필요합니다(작업 스케줄러 방식 자동 승격은 미구현).
+- 폴링 주기는 기본 2초.
+
 ## 라이선스
 
-미정.
+미정. 단, 의존 라이브러리 [LibreHardwareMonitorLib](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)은 **MPL-2.0**, [Velopack](https://github.com/velopack/velopack)·[Avalonia](https://avaloniaui.net/)·[CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet)는 MIT 계열입니다.

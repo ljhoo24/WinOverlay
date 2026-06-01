@@ -56,6 +56,10 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+                <TextBlock Text="{Binding SystemText}"
+                           IsVisible="{Binding SystemVisible}"
+                           Foreground="#E0C7F9CC"
+                           FontSize="13" />
                 <ItemsControl ItemsSource="{Binding TimerLines}"
                               IsVisible="{Binding TimerVisible}">
                     <ItemsControl.ItemTemplate>

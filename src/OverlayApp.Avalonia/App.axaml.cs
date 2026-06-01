@@ -124,6 +124,10 @@ public partial class App : Application
             {
                 startup.Enable();
             }
+
+            // System metrics: start polling if enabled.
+            var metrics = Services.GetRequiredService<SystemMetricsUpdater>();
+            metrics.Apply();
         }
 
         base.OnFrameworkInitializationCompleted();
@@ -191,6 +195,9 @@ public partial class App : Application
         }
         settingsService.Save(settings);
     }
+
+    /// <summary>외부(예: 관리자 재실행)에서 깔끔한 종료를 요청할 때 사용.</summary>
+    public void RequestShutdown() => Shutdown();
 
     private void Shutdown()
     {

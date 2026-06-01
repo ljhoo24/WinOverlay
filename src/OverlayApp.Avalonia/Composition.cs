@@ -29,6 +29,8 @@ public static class Composition
         services.AddSingleton<IGlobalHotkeyService, Win32GlobalHotkeyService>();
         services.AddSingleton<ITrayService, AvaloniaTrayService>();
         services.AddSingleton<IStartupService, WindowsStartupService>();
+        services.AddSingleton<IElevationService, WindowsElevationService>();
+        services.AddSingleton<ISystemMetricsService, WindowsSystemMetricsService>();
 
         // Core services.
         services.AddSingleton<System.Net.Http.HttpClient>(_ =>
@@ -45,6 +47,7 @@ public static class Composition
         services.AddSingleton<WeatherUpdater>();
         services.AddSingleton<IAlarmService, AvaloniaAlarmService>();
         services.AddSingleton<TimerService>();
+        services.AddSingleton<SystemMetricsUpdater>();
 
         // ViewModels.
         services.AddSingleton<OverlayViewModel>();

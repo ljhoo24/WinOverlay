@@ -16,9 +16,11 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IOverlayController _controller;
     private readonly IGlobalHotkeyService _hotkeys;
     private readonly IStartupService _startup;
+    private readonly IElevationService _elevation;
     private readonly OverlayViewModel _overlay;
     private readonly WeatherUpdater _weatherUpdater;
     private readonly TimerService _timerService;
+    private readonly SystemMetricsUpdater _systemUpdater;
     private readonly AppSettings _settings;
 
     [ObservableProperty]
@@ -68,6 +70,27 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private string _timerStatus = "정지됨";
 
+    [ObservableProperty]
+    private bool _systemEnabled;
+
+    [ObservableProperty]
+    private bool _showMemory;
+
+    [ObservableProperty]
+    private bool _showCpuLoad;
+
+    [ObservableProperty]
+    private bool _showCpuTemp;
+
+    [ObservableProperty]
+    private bool _showGpuTemp;
+
+    [ObservableProperty]
+    private int _systemRefreshSeconds;
+
+    [ObservableProperty]
+    private bool _needsElevationForTemps;
+
     public ObservableCollection<WorldClockEntryViewModel> WorldClockEntries => _overlay.WorldClockEntries;
 
     public ObservableCollection<TimerInstanceViewModel> TimerItems { get; } = new();
@@ -84,18 +107,22 @@ public sealed partial class SettingsViewModel : ObservableObject
         IOverlayController controller,
         IGlobalHotkeyService hotkeys,
         IStartupService startup,
+        IElevationService elevation,
         OverlayViewModel overlay,
         WeatherUpdater weatherUpdater,
         TimerService timerService,
+        SystemMetricsUpdater systemUpdater,
         AppSettings settings)
     {
         _settingsService = settingsService;
         _controller = controller;
         _hotkeys = hotkeys;
         _startup = startup;
+        _elevation = elevation;
         _overlay = overlay;
         _weatherUpdater = weatherUpdater;
         _timerService = timerService;
+        _systemUpdater = systemUpdater;
         _settings = settings;
 
         _startWithWindows = _settings.StartWithWindows;
@@ -160,6 +187,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         _timerEnabled = _settings.Timer.Enabled;
         _timerSoundEnabled = _settings.Timer.SoundEnabled;
 
+        _systemEnabled = _settings.System.Enabled;
+        _showMemory = _settings.System.ShowMemory;
+        _showCpuLoad = _settings.System.ShowCpuLoad;
+        _showCpuTemp = _settings.System.ShowCpuTemp;
+        _showGpuTemp = _settings.System.ShowGpuTemp;
+        _systemRefreshSeconds = _settings.System.RefreshSeconds;
+        RecomputeNeedsElevation();
+
         // TimerItems collection 초기화 (저장된 항목 로드)
         foreach (var spec in _settings.Timer.Items)
         {
@@ -221,6 +256,46 @@ public sealed partial class SettingsViewModel : ObservableObject
     }
 
     public AppSettings Settings => _settings;
+
+    public bool IsElevated => _elevation.IsElevated;
+
+    private void RecomputeNeedsElevation()
+    {
+        NeedsElevationForTemps = _settings.System.AnyTempRequested && !_elevation.IsElevated;
+    }
+
+    private void ApplySystemMetrics()
+    {
+        _settings.System.Enabled = SystemEnabled;
+        _settings.System.ShowMemory = ShowMemory;
+        _settings.System.ShowCpuLoad = ShowCpuLoad;
+        _settings.System.ShowCpuTemp = ShowCpuTemp;
+        _settings.System.ShowGpuTemp = ShowGpuTemp;
+        _settings.System.RefreshSeconds = System.Math.Max(1, SystemRefreshSeconds);
+        Persist();
+        RecomputeNeedsElevation();
+        _systemUpdater.Apply();
+        _overlay.RefreshSystemDisplay();
+    }
+
+    partial void OnSystemEnabledChanged(bool value) => ApplySystemMetrics();
+
+    partial void OnShowMemoryChanged(bool value) => ApplySystemMetrics();
+
+    partial void OnShowCpuLoadChanged(bool value) => ApplySystemMetrics();
+
+    partial void OnShowCpuTempChanged(bool value) => ApplySystemMetrics();
+
+    partial void OnShowGpuTempChanged(bool value) => ApplySystemMetrics();
+
+    partial void OnSystemRefreshSecondsChanged(int value) => ApplySystemMetrics();
+
+    [RelayCommand]
+    private void RestartElevated()
+    {
+        _elevation.RestartElevated();
+        // 성공 시 앱이 종료되고 관리자 인스턴스가 뜬다. 실패(UAC 취소) 시 여기로 돌아온다.
+    }
 
     partial void OnStartWithWindowsChanged(bool value)
     {

@@ -14,6 +14,7 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
     private readonly IOverlayController _controller;
     private readonly WeatherUpdater _weatherUpdater;
     private readonly TimerService _timerService;
+    private readonly SystemMetricsUpdater _systemUpdater;
     private readonly AppSettings _settings;
 
     [ObservableProperty]
@@ -34,6 +35,12 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _timerVisible;
 
+    [ObservableProperty]
+    private string _systemText = string.Empty;
+
+    [ObservableProperty]
+    private bool _systemVisible;
+
     public ObservableCollection<WorldClockEntryViewModel> WorldClockEntries { get; } = new();
 
     public ObservableCollection<WeatherLineViewModel> CityWeatherLines { get; } = new();
@@ -45,12 +52,14 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
         IOverlayController controller,
         WeatherUpdater weatherUpdater,
         TimerService timerService,
+        SystemMetricsUpdater systemUpdater,
         AppSettings settings)
     {
         _clockService = clockService;
         _controller = controller;
         _weatherUpdater = weatherUpdater;
         _timerService = timerService;
+        _systemUpdater = systemUpdater;
         _settings = settings;
         Use24Hour = settings.Clock.Use24Hour;
 
@@ -63,10 +72,12 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
         _clockService.Tick += OnTick;
         _weatherUpdater.Updated += OnWeatherUpdated;
         _timerService.Changed += OnTimerChanged;
+        _systemUpdater.Updated += OnSystemUpdated;
         UpdateTime();
         UpdateWorldClocks();
         UpdateCityWeatherDisplay();
         UpdateTimerDisplay();
+        UpdateSystemDisplay();
         _clockService.Start();
         _weatherUpdater.Start();
     }
@@ -79,6 +90,8 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
     public void RefreshTimerVisibility() => UpdateTimerDisplay();
 
     public void RefreshCityWeatherDisplay() => UpdateCityWeatherDisplay();
+
+    public void RefreshSystemDisplay() => UpdateSystemDisplay();
 
     partial void OnIsAdjustModeChanged(bool value)
     {
@@ -94,6 +107,8 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
     private void OnWeatherUpdated(object? sender, EventArgs e) => UpdateCityWeatherDisplay();
 
     private void OnTimerChanged(object? sender, EventArgs e) => UpdateTimerDisplay();
+
+    private void OnSystemUpdated(object? sender, EventArgs e) => UpdateSystemDisplay();
 
     private void UpdateTime()
     {
@@ -181,6 +196,61 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
         CityWeatherVisible = CityWeatherLines.Count > 0;
     }
 
+    private void UpdateSystemDisplay()
+    {
+        var s = _settings.System;
+        if (!s.Enabled)
+        {
+            SystemText = string.Empty;
+            SystemVisible = false;
+            return;
+        }
+
+        var m = _systemUpdater.Latest;
+        var lines = new System.Collections.Generic.List<string>();
+
+        if (s.ShowCpuLoad || s.ShowCpuTemp)
+        {
+            var parts = new System.Collections.Generic.List<string>();
+            if (s.ShowCpuLoad)
+                parts.Add(m?.CpuLoadPercent is double l ? $"{l:0}%" : "--%");
+            if (s.ShowCpuTemp)
+            {
+                if (m?.ElevationRequiredForTemps == true) parts.Add("온도 권한필요");
+                else parts.Add(m?.CpuTempC is double t ? $"{t:0}°C" : "--°C");
+            }
+            lines.Add("CPU " + string.Join(" · ", parts));
+        }
+
+        if (s.ShowGpuTemp)
+        {
+            string gpu;
+            if (m?.ElevationRequiredForTemps == true)
+            {
+                gpu = "온도 권한필요";
+            }
+            else
+            {
+                var parts = new System.Collections.Generic.List<string>();
+                if (m?.GpuTempC is double gt) parts.Add($"{gt:0}°C");
+                if (m?.GpuLoadPercent is double gl) parts.Add($"{gl:0}%");
+                gpu = parts.Count > 0 ? string.Join(" · ", parts) : "--";
+            }
+            lines.Add("GPU " + gpu);
+        }
+
+        if (s.ShowMemory)
+        {
+            if (m?.MemoryUsedGb is double u && m?.MemoryTotalGb is double tot)
+                lines.Add($"RAM {u:0.0}/{tot:0.0}GB ({m.MemoryPercent:0}%)");
+            else
+                lines.Add("RAM --");
+        }
+
+        SystemText = string.Join("\n", lines);
+        SystemVisible = lines.Count > 0;
+    }
+
     private static string FormatWeather(WeatherInfo w, string fallbackLabel)
     {
         if (w.HasError) return $"{fallbackLabel}: {w.ErrorMessage}";
@@ -200,5 +270,6 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
         _clockService.Tick -= OnTick;
         _weatherUpdater.Updated -= OnWeatherUpdated;
         _timerService.Changed -= OnTimerChanged;
+        _systemUpdater.Updated -= OnSystemUpdated;
     }
 }

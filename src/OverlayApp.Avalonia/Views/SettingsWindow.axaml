@@ -217,5 +217,41 @@
                 </StackPanel>
             </ScrollViewer>
         </TabItem>
+
+        <TabItem Header="시스템">
+            <ScrollViewer>
+                <StackPanel Margin="16" Spacing="16">
+                    <ToggleSwitch IsChecked="{Binding SystemEnabled}"
+                                  OnContent="시스템 지표 표시"
+                                  OffContent="시스템 지표 숨김" />
+
+                    <StackPanel Spacing="6" IsEnabled="{Binding SystemEnabled}">
+                        <TextBlock Text="표시 항목" FontWeight="SemiBold" />
+                        <CheckBox Content="메모리 사용률" IsChecked="{Binding ShowMemory}" />
+                        <CheckBox Content="CPU 사용률" IsChecked="{Binding ShowCpuLoad}" />
+                        <CheckBox Content="CPU 온도 (관리자 권한 필요)" IsChecked="{Binding ShowCpuTemp}" />
+                        <CheckBox Content="GPU 온도/사용률 (관리자 권한 필요)" IsChecked="{Binding ShowGpuTemp}" />
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="120,120" ColumnSpacing="8" IsEnabled="{Binding SystemEnabled}">
+                        <TextBlock Grid.Column="0" Text="갱신 주기(초)" VerticalAlignment="Center" />
+                        <NumericUpDown Grid.Column="1" Minimum="1" Maximum="60"
+                                       Value="{Binding SystemRefreshSeconds}" />
+                    </Grid>
+
+                    <Border BorderBrush="#FFEAB308" BorderThickness="1" CornerRadius="4" Padding="12"
+                            IsVisible="{Binding NeedsElevationForTemps}">
+                        <StackPanel Spacing="8">
+                            <TextBlock TextWrapping="Wrap"
+                                       Text="온도 지표는 관리자 권한이 있어야 읽을 수 있습니다. 아래 버튼을 누르면 관리자 권한으로 다시 실행합니다 (UAC 확인 필요)." />
+                            <Button Content="관리자 권한으로 재시작" Command="{Binding RestartElevatedCommand}" HorizontalAlignment="Left" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock TextWrapping="Wrap" Opacity="0.7" FontSize="12"
+                               Text="메모리·CPU 사용률은 권한 없이 동작합니다. 온도는 LibreHardwareMonitor로 읽으며 부팅 자동시작 시에는 관리자 권한이 아니라 매번 재시작이 필요할 수 있습니다." />
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
     </TabControl>
 </Window>
