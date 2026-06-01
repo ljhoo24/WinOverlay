@@ -12,6 +12,8 @@ public enum HotkeyModifiers
 
 public sealed class HotkeyDefinition
 {
+    public bool Enabled { get; set; } = true;
+
     public HotkeyModifiers Modifiers { get; set; } = HotkeyModifiers.Control | HotkeyModifiers.Alt;
 
     public string Key { get; set; } = "O";
@@ -24,6 +26,7 @@ public sealed class HotkeyDefinition
         if (Modifiers.HasFlag(HotkeyModifiers.Shift)) parts.Add("Shift");
         if (Modifiers.HasFlag(HotkeyModifiers.Win)) parts.Add("Win");
         parts.Add(Key);
-        return string.Join(" + ", parts);
+        var combo = string.Join(" + ", parts);
+        return Enabled ? combo : $"{combo} (사용 안 함)";
     }
 }
