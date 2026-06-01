@@ -22,8 +22,6 @@ public sealed class AppSettings
 
     public WorldClockSettings WorldClock { get; set; } = new();
 
-    public LocationWeatherSettings LocationWeather { get; set; } = new();
-
     public CityWeatherSettings CityWeather { get; set; } = new();
 
     public WeatherCommonSettings WeatherCommon { get; set; } = new();
@@ -100,20 +98,18 @@ public sealed class WorldClockSettings
     public List<WorldClockEntry> Entries { get; set; } = new();
 }
 
-public sealed class LocationWeatherSettings
-{
-    public bool Enabled { get; set; }
-
-    public bool ConsentGranted { get; set; }
-
-    public double? LastLatitude { get; set; }
-
-    public double? LastLongitude { get; set; }
-}
-
 public sealed class CityWeatherSettings
 {
+    public const int MaxCities = 3;
+
     public bool Enabled { get; set; }
+
+    public List<CityWeatherEntry> Cities { get; set; } = new();
+}
+
+public sealed class CityWeatherEntry
+{
+    public string Id { get; set; } = System.Guid.NewGuid().ToString("N");
 
     public string CityName { get; set; } = string.Empty;
 }

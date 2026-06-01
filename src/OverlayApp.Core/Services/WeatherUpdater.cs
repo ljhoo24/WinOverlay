@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using OverlayApp.Core.Abstractions;
@@ -9,28 +11,23 @@ namespace OverlayApp.Core.Services;
 public sealed class WeatherUpdater : IDisposable
 {
     private readonly IWeatherService _weather;
-    private readonly IGeolocationService _geo;
-    private readonly ISettingsService _settingsService;
     private readonly IUiDispatcher _dispatcher;
     private readonly AppSettings _settings;
     private readonly Timer _timer;
 
-    public WeatherInfo? LocationWeather { get; private set; }
+    private readonly Dictionary<string, WeatherInfo> _cityWeathers = new();
 
-    public WeatherInfo? CityWeather { get; private set; }
+    /// <summary>도시 항목 ID → WeatherInfo. Idle 또는 미조회 항목은 누락될 수 있음.</summary>
+    public IReadOnlyDictionary<string, WeatherInfo> CityWeathers => _cityWeathers;
 
     public event EventHandler? Updated;
 
     public WeatherUpdater(
         IWeatherService weather,
-        IGeolocationService geo,
-        ISettingsService settingsService,
         IUiDispatcher dispatcher,
         AppSettings settings)
     {
         _weather = weather;
-        _geo = geo;
-        _settingsService = settingsService;
         _dispatcher = dispatcher;
         _settings = settings;
         _timer = new Timer(OnTimer, null, Timeout.Infinite, Timeout.Infinite);
@@ -55,54 +52,36 @@ public sealed class WeatherUpdater : IDisposable
 
     private async Task RefreshAsync()
     {
-        var locTask = RefreshLocationAsync();
-        var cityTask = RefreshCityAsync();
-        await Task.WhenAll(locTask, cityTask);
+        if (!_settings.CityWeather.Enabled || _settings.CityWeather.Cities.Count == 0)
+        {
+            _cityWeathers.Clear();
+            _dispatcher.Post(() => Updated?.Invoke(this, EventArgs.Empty));
+            return;
+        }
+
+        var entries = _settings.CityWeather.Cities.ToList();
+        var tasks = entries.Select(async e =>
+        {
+            var info = string.IsNullOrWhiteSpace(e.CityName)
+                ? new WeatherInfo { HasError = true, ErrorMessage = "도시명 비어 있음" }
+                : await _weather.GetByCityAsync(e.CityName);
+            return (e.Id, info);
+        });
+
+        var results = await Task.WhenAll(tasks);
+
+        // Replace map (remove stale, keep latest)
+        var validIds = entries.Select(e => e.Id).ToHashSet();
+        foreach (var key in _cityWeathers.Keys.ToList())
+        {
+            if (!validIds.Contains(key)) _cityWeathers.Remove(key);
+        }
+        foreach (var (id, info) in results)
+        {
+            _cityWeathers[id] = info;
+        }
+
         _dispatcher.Post(() => Updated?.Invoke(this, EventArgs.Empty));
-    }
-
-    private async Task RefreshLocationAsync()
-    {
-        var s = _settings.LocationWeather;
-        if (!s.Enabled || !s.ConsentGranted)
-        {
-            LocationWeather = null;
-            return;
-        }
-
-        double lat, lon;
-        if (s.LastLatitude is { } cachedLat && s.LastLongitude is { } cachedLon)
-        {
-            lat = cachedLat;
-            lon = cachedLon;
-        }
-        else
-        {
-            var geo = await _geo.GetCurrentAsync();
-            if (geo.HasError)
-            {
-                LocationWeather = new WeatherInfo { HasError = true, ErrorMessage = geo.ErrorMessage };
-                return;
-            }
-            lat = geo.Latitude;
-            lon = geo.Longitude;
-            s.LastLatitude = lat;
-            s.LastLongitude = lon;
-            _settingsService.Save(_settings);
-        }
-
-        LocationWeather = await _weather.GetByCoordinatesAsync(lat, lon);
-    }
-
-    private async Task RefreshCityAsync()
-    {
-        var s = _settings.CityWeather;
-        if (!s.Enabled || string.IsNullOrWhiteSpace(s.CityName))
-        {
-            CityWeather = null;
-            return;
-        }
-        CityWeather = await _weather.GetByCityAsync(s.CityName);
     }
 
     public void Dispose() => _timer.Dispose();

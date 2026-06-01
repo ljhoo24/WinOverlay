@@ -54,16 +54,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private int _refreshMinutes;
 
     [ObservableProperty]
-    private bool _locationWeatherEnabled;
-
-    [ObservableProperty]
-    private bool _locationConsent;
-
-    [ObservableProperty]
     private bool _cityWeatherEnabled;
-
-    [ObservableProperty]
-    private string _cityName = string.Empty;
 
     [ObservableProperty]
     private bool _worldClockEnabled;
@@ -80,6 +71,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     public ObservableCollection<WorldClockEntryViewModel> WorldClockEntries => _overlay.WorldClockEntries;
 
     public ObservableCollection<TimerInstanceViewModel> TimerItems { get; } = new();
+
+    public ObservableCollection<CityWeatherEntryViewModel> CityWeatherEntries { get; } = new();
+
+    public int MaxCityWeatherEntries => CityWeatherSettings.MaxCities;
 
     public IReadOnlyList<string> AvailableTimeZoneIds { get; } =
         TimeZoneInfo.GetSystemTimeZones().Select(z => z.Id).OrderBy(s => s).ToList();
@@ -146,11 +141,21 @@ public sealed partial class SettingsViewModel : ObservableObject
         _useFahrenheit = _settings.WeatherCommon.Unit == TemperatureUnit.Fahrenheit;
         _apiKey = _settings.WeatherCommon.ApiKey;
         _refreshMinutes = _settings.WeatherCommon.RefreshMinutes;
-        _locationWeatherEnabled = _settings.LocationWeather.Enabled;
-        _locationConsent = _settings.LocationWeather.ConsentGranted;
         _cityWeatherEnabled = _settings.CityWeather.Enabled;
-        _cityName = _settings.CityWeather.CityName;
         _worldClockEnabled = _settings.WorldClock.Enabled;
+
+        foreach (var entry in _settings.CityWeather.Cities)
+        {
+            var vm = new CityWeatherEntryViewModel(entry);
+            vm.Changed += OnCityWeatherEntryChanged;
+            CityWeatherEntries.Add(vm);
+        }
+        CityWeatherEntries.CollectionChanged += (_, _) =>
+        {
+            SyncCityWeatherToSettings();
+            AddCityWeatherCommand.NotifyCanExecuteChanged();
+            _overlay.RefreshCityWeatherDisplay();
+        };
 
         _timerEnabled = _settings.Timer.Enabled;
         _timerSoundEnabled = _settings.Timer.SoundEnabled;
@@ -311,41 +316,43 @@ public sealed partial class SettingsViewModel : ObservableObject
         _weatherUpdater.Reschedule();
     }
 
-    partial void OnLocationWeatherEnabledChanged(bool value)
-    {
-        if (value && !LocationConsent)
-        {
-            LocationWeatherEnabled = false;
-            return;
-        }
-        _settings.LocationWeather.Enabled = value;
-        Persist();
-        _ = _weatherUpdater.TriggerRefresh();
-    }
-
-    partial void OnLocationConsentChanged(bool value)
-    {
-        _settings.LocationWeather.ConsentGranted = value;
-        if (!value)
-        {
-            _settings.LocationWeather.Enabled = false;
-            _settings.LocationWeather.LastLatitude = null;
-            _settings.LocationWeather.LastLongitude = null;
-            LocationWeatherEnabled = false;
-        }
-        Persist();
-    }
-
     partial void OnCityWeatherEnabledChanged(bool value)
     {
         _settings.CityWeather.Enabled = value;
         Persist();
+        _overlay.RefreshCityWeatherDisplay();
         _ = _weatherUpdater.TriggerRefresh();
     }
 
-    partial void OnCityNameChanged(string value)
+    [RelayCommand(CanExecute = nameof(CanAddCityWeather))]
+    private void AddCityWeather()
     {
-        _settings.CityWeather.CityName = value ?? string.Empty;
+        if (!CanAddCityWeather()) return;
+        var entry = new CityWeatherEntry();
+        var vm = new CityWeatherEntryViewModel(entry);
+        vm.Changed += OnCityWeatherEntryChanged;
+        CityWeatherEntries.Add(vm);
+    }
+
+    private bool CanAddCityWeather() => CityWeatherEntries.Count < CityWeatherSettings.MaxCities;
+
+    [RelayCommand]
+    private void RemoveCityWeather(CityWeatherEntryViewModel? entry)
+    {
+        if (entry is null) return;
+        entry.Changed -= OnCityWeatherEntryChanged;
+        CityWeatherEntries.Remove(entry);
+    }
+
+    private void OnCityWeatherEntryChanged(object? sender, EventArgs e)
+    {
+        SyncCityWeatherToSettings();
+        _ = _weatherUpdater.TriggerRefresh();
+    }
+
+    private void SyncCityWeatherToSettings()
+    {
+        _settings.CityWeather.Cities = CityWeatherEntries.Select(vm => vm.ToModel()).ToList();
         Persist();
     }
 

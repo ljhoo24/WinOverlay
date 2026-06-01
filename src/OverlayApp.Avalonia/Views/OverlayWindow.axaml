@@ -46,14 +46,16 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <TextBlock Text="{Binding LocationWeatherText}"
-                           IsVisible="{Binding LocationWeatherVisible}"
-                           Foreground="#E0FFFFFF"
-                           FontSize="13" />
-                <TextBlock Text="{Binding CityWeatherText}"
-                           IsVisible="{Binding CityWeatherVisible}"
-                           Foreground="#E0FFFFFF"
-                           FontSize="13" />
+                <ItemsControl ItemsSource="{Binding CityWeatherLines}"
+                              IsVisible="{Binding CityWeatherVisible}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Text}"
+                                       Foreground="#E0FFFFFF"
+                                       FontSize="13" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
                 <ItemsControl ItemsSource="{Binding TimerLines}"
                               IsVisible="{Binding TimerVisible}">
                     <ItemsControl.ItemTemplate>

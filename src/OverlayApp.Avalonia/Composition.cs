@@ -42,7 +42,6 @@ public static class Composition
         });
         services.AddSingleton<ClockService>();
         services.AddSingleton<IWeatherService, WeatherService>();
-        services.AddSingleton<IGeolocationService, GeolocationService>();
         services.AddSingleton<WeatherUpdater>();
         services.AddSingleton<IAlarmService, AvaloniaAlarmService>();
         services.AddSingleton<TimerService>();

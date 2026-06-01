@@ -26,15 +26,6 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
     private bool _isAdjustMode;
 
     [ObservableProperty]
-    private string _locationWeatherText = string.Empty;
-
-    [ObservableProperty]
-    private bool _locationWeatherVisible;
-
-    [ObservableProperty]
-    private string _cityWeatherText = string.Empty;
-
-    [ObservableProperty]
     private bool _cityWeatherVisible;
 
     [ObservableProperty]
@@ -44,6 +35,8 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
     private bool _timerVisible;
 
     public ObservableCollection<WorldClockEntryViewModel> WorldClockEntries { get; } = new();
+
+    public ObservableCollection<WeatherLineViewModel> CityWeatherLines { get; } = new();
 
     public ObservableCollection<TimerLineViewModel> TimerLines { get; } = new();
 
@@ -72,7 +65,7 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
         _timerService.Changed += OnTimerChanged;
         UpdateTime();
         UpdateWorldClocks();
-        UpdateWeatherDisplay();
+        UpdateCityWeatherDisplay();
         UpdateTimerDisplay();
         _clockService.Start();
         _weatherUpdater.Start();
@@ -85,6 +78,8 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
 
     public void RefreshTimerVisibility() => UpdateTimerDisplay();
 
+    public void RefreshCityWeatherDisplay() => UpdateCityWeatherDisplay();
+
     partial void OnIsAdjustModeChanged(bool value)
     {
         _controller.SetClickThrough(!value);
@@ -96,7 +91,7 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
         UpdateWorldClocks();
     }
 
-    private void OnWeatherUpdated(object? sender, EventArgs e) => UpdateWeatherDisplay();
+    private void OnWeatherUpdated(object? sender, EventArgs e) => UpdateCityWeatherDisplay();
 
     private void OnTimerChanged(object? sender, EventArgs e) => UpdateTimerDisplay();
 
@@ -123,11 +118,9 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
             return;
         }
 
-        // Diff-merge: keep only active runtimes, in-place text update for existing lines.
         var active = _timerService.Runtimes.Where(r => r.State != TimerState.Idle).ToList();
         var activeIds = active.Select(r => r.Spec.Id).ToHashSet();
 
-        // 제거: 더 이상 active가 아닌 줄
         for (var i = TimerLines.Count - 1; i >= 0; i--)
         {
             if (!activeIds.Contains(TimerLines[i].Id)) TimerLines.RemoveAt(i);
@@ -147,29 +140,45 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
         TimerVisible = TimerLines.Count > 0;
     }
 
-    private void UpdateWeatherDisplay()
+    private void UpdateCityWeatherDisplay()
     {
-        var loc = _weatherUpdater.LocationWeather;
-        if (_settings.LocationWeather.Enabled && _settings.LocationWeather.ConsentGranted && loc is not null)
+        var enabled = _settings.CityWeather.Enabled;
+        var entries = _settings.CityWeather.Cities;
+
+        if (!enabled || entries.Count == 0)
         {
-            LocationWeatherText = FormatWeather(loc, fallbackLabel: "현재 위치");
-            LocationWeatherVisible = true;
-        }
-        else
-        {
-            LocationWeatherVisible = false;
+            if (CityWeatherLines.Count > 0) CityWeatherLines.Clear();
+            CityWeatherVisible = false;
+            return;
         }
 
-        var city = _weatherUpdater.CityWeather;
-        if (_settings.CityWeather.Enabled && city is not null)
+        var validIds = entries.Select(e => e.Id).ToHashSet();
+        for (var i = CityWeatherLines.Count - 1; i >= 0; i--)
         {
-            CityWeatherText = FormatWeather(city, fallbackLabel: _settings.CityWeather.CityName);
-            CityWeatherVisible = true;
+            if (!validIds.Contains(CityWeatherLines[i].Id)) CityWeatherLines.RemoveAt(i);
         }
-        else
+
+        foreach (var entry in entries)
         {
-            CityWeatherVisible = false;
+            var line = CityWeatherLines.FirstOrDefault(l => l.Id == entry.Id);
+            if (line is null)
+            {
+                line = new WeatherLineViewModel(entry.Id);
+                CityWeatherLines.Add(line);
+            }
+            if (_weatherUpdater.CityWeathers.TryGetValue(entry.Id, out var info))
+            {
+                line.Text = FormatWeather(info, fallbackLabel: entry.CityName);
+            }
+            else
+            {
+                line.Text = string.IsNullOrWhiteSpace(entry.CityName)
+                    ? "(도시명 미입력)"
+                    : $"{entry.CityName}: 조회 중...";
+            }
         }
+
+        CityWeatherVisible = CityWeatherLines.Count > 0;
     }
 
     private static string FormatWeather(WeatherInfo w, string fallbackLabel)
