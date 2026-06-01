@@ -61,6 +61,7 @@
                     <StackPanel Spacing="12">
                         <TextBlock Text="단축키" FontWeight="SemiBold" FontSize="14" />
                         <ContentControl Content="{Binding ToggleHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
+                        <ContentControl Content="{Binding OpenSettingsHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
                         <ContentControl Content="{Binding TimerToggleHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
                         <ContentControl Content="{Binding TimerVisibilityHotkeyEditor}" ContentTemplate="{StaticResource HotkeyEditorTemplate}" />
                     </StackPanel>

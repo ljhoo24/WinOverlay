@@ -97,6 +97,9 @@ public partial class App : Application
                     case "toggle-overlay":
                         ToggleOverlay();
                         break;
+                    case "open-settings":
+                        ShowSettings();
+                        break;
                     case "timer-toggle":
                         timer.Toggle();
                         Services!.GetRequiredService<OverlayViewModel>().RefreshTimerVisibility();
@@ -107,6 +110,7 @@ public partial class App : Application
                 }
             };
             hotkeys.Register("toggle-overlay", settings.ToggleHotkey);
+            hotkeys.Register("open-settings", settings.OpenSettingsHotkey);
             hotkeys.Register("timer-toggle", settings.Timer.ToggleHotkey);
             hotkeys.Register("timer-visibility", settings.Timer.VisibilityHotkey);
 

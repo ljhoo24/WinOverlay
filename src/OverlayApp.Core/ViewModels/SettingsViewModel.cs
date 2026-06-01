@@ -32,6 +32,8 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public HotkeyEditorViewModel ToggleHotkeyEditor { get; }
 
+    public HotkeyEditorViewModel OpenSettingsHotkeyEditor { get; }
+
     public HotkeyEditorViewModel TimerToggleHotkeyEditor { get; }
 
     public HotkeyEditorViewModel TimerVisibilityHotkeyEditor { get; }
@@ -122,6 +124,13 @@ public sealed partial class SettingsViewModel : ObservableObject
             hotkeys: _hotkeys,
             read: () => _settings.ToggleHotkey,
             write: def => _settings.ToggleHotkey = def,
+            persist: Persist);
+        OpenSettingsHotkeyEditor = new HotkeyEditorViewModel(
+            title: "설정창 열기",
+            hotkeyId: "open-settings",
+            hotkeys: _hotkeys,
+            read: () => _settings.OpenSettingsHotkey,
+            write: def => _settings.OpenSettingsHotkey = def,
             persist: Persist);
         TimerToggleHotkeyEditor = new HotkeyEditorViewModel(
             title: "타이머 시작/일시정지/재개",

@@ -10,6 +10,12 @@ public sealed class AppSettings
 
     public HotkeyDefinition ToggleHotkey { get; set; } = new();
 
+    public HotkeyDefinition OpenSettingsHotkey { get; set; } = new()
+    {
+        Modifiers = HotkeyModifiers.Control | HotkeyModifiers.Alt,
+        Key = "S",
+    };
+
     public ClockSettings Clock { get; set; } = new();
 
     public WorldClockSettings WorldClock { get; set; } = new();
