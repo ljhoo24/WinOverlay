@@ -232,8 +232,9 @@ public sealed partial class OverlayViewModel : ObservableObject, IDisposable
             else
             {
                 var parts = new System.Collections.Generic.List<string>();
-                if (m?.GpuTempC is double gt) parts.Add($"{gt:0}°C");
+                // CPU 라인과 동일하게 '사용% · 온도' 순서로 통일.
                 if (m?.GpuLoadPercent is double gl) parts.Add($"{gl:0}%");
+                if (m?.GpuTempC is double gt) parts.Add($"{gt:0}°C");
                 gpu = parts.Count > 0 ? string.Join(" · ", parts) : "--";
             }
             lines.Add("GPU " + gpu);
