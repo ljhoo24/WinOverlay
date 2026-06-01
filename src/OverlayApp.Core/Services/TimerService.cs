@@ -18,8 +18,9 @@ public sealed class TimerService : IDisposable
     private readonly AppSettings _settings;
 
     private TimerState _state = TimerState.Idle;
+    private TimerMode _currentMode;
     private DateTime? _targetEnd;
-    private TimeSpan? _pausedRemaining;
+    private TimeSpan? _frozenRemaining;
     private string _modeLabel = string.Empty;
 
     public TimerState State => _state;
@@ -37,7 +38,7 @@ public sealed class TimerService : IDisposable
     }
 
     /// <summary>
-    /// 단일 단축키용 토글: Idle→시작, Running→일시정지, Paused→재개.
+    /// 단일 단축키 토글: Idle→시작, Running→일시정지, Paused→재개.
     /// </summary>
     public void Toggle()
     {
@@ -59,6 +60,7 @@ public sealed class TimerService : IDisposable
     {
         var s = _settings.Timer;
         var now = DateTime.Now;
+        _currentMode = s.Mode;
 
         if (s.Mode == TimerMode.Duration)
         {
@@ -76,7 +78,7 @@ public sealed class TimerService : IDisposable
             _modeLabel = target.ToString("HH:mm 알람");
         }
 
-        _pausedRemaining = null;
+        _frozenRemaining = null;
         _state = TimerState.Running;
         Changed?.Invoke(this, EventArgs.Empty);
     }
@@ -84,32 +86,44 @@ public sealed class TimerService : IDisposable
     public void Pause()
     {
         if (_state != TimerState.Running || _targetEnd is not { } end) return;
+
         var remaining = end - DateTime.Now;
         if (remaining < TimeSpan.Zero) remaining = TimeSpan.Zero;
-        _pausedRemaining = remaining;
-        _targetEnd = null;
+        _frozenRemaining = remaining;
+
+        // Duration 모드는 target을 잊는다 (resume 시 now 기준으로 재계산).
+        // ClockTime 모드는 target 시각을 그대로 유지한다 (resume 시 그 시각까지의 남은 시간이 자동 계산).
+        if (_currentMode == TimerMode.Duration)
+        {
+            _targetEnd = null;
+        }
+
         _state = TimerState.Paused;
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
     public void Resume()
     {
-        if (_state != TimerState.Paused || _pausedRemaining is not { } remaining) return;
-        _targetEnd = DateTime.Now.Add(remaining);
-        _pausedRemaining = null;
+        if (_state != TimerState.Paused) return;
+
+        if (_currentMode == TimerMode.Duration && _frozenRemaining is { } r)
+        {
+            _targetEnd = DateTime.Now.Add(r);
+        }
+        // ClockTime: _targetEnd는 pause 동안 유지되었으므로 그대로 사용.
+
+        _frozenRemaining = null;
         _state = TimerState.Running;
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>
-    /// 완전 중단: 상태를 Idle로 되돌린다. 단축키엔 매핑되지 않고 설정창의 "정지" 버튼 전용.
-    /// </summary>
+    /// <summary>완전 중단: Idle로 되돌린다. 단축키엔 매핑되지 않고 설정창 "정지" 버튼 전용.</summary>
     public void Stop()
     {
         if (_state == TimerState.Idle) return;
         _state = TimerState.Idle;
         _targetEnd = null;
-        _pausedRemaining = null;
+        _frozenRemaining = null;
         _modeLabel = string.Empty;
         Changed?.Invoke(this, EventArgs.Empty);
     }
@@ -123,9 +137,9 @@ public sealed class TimerService : IDisposable
         {
             remaining = end - DateTime.Now;
         }
-        else if (_state == TimerState.Paused && _pausedRemaining is { } pr)
+        else if (_state == TimerState.Paused && _frozenRemaining is { } fr)
         {
-            remaining = pr;
+            remaining = fr;
         }
         else
         {
@@ -154,7 +168,7 @@ public sealed class TimerService : IDisposable
             _alarm.Fire("타이머 종료", $"{firedLabel} ({DateTime.Now:HH:mm:ss})", _settings.Timer.SoundEnabled);
             _state = TimerState.Idle;
             _targetEnd = null;
-            _pausedRemaining = null;
+            _frozenRemaining = null;
             _modeLabel = string.Empty;
             Changed?.Invoke(this, EventArgs.Empty);
         }
