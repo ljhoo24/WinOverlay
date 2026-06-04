@@ -96,8 +96,38 @@ public sealed class AvaloniaOverlayController : IOverlayController
 
     private void ApplyPosition()
     {
-        if (_window is null || _wantX is not double x || _wantY is not double y) return;
-        _window.Position = new PixelPoint((int)Math.Round(x), (int)Math.Round(y));
+        if (_window is null || _wantX is not double wx || _wantY is not double wy) return;
+
+        var x = (int)Math.Round(wx);
+        var y = (int)Math.Round(wy);
+
+        // 멀티 모니터: 저장된 좌표가 현재 화면 밖이면 보이는 영역 안으로 보정.
+        try
+        {
+            var screens = _window.Screens;
+            if (screens is not null && screens.All.Count > 0)
+            {
+                var scale = _window.RenderScaling;
+                if (scale <= 0) scale = 1;
+                var wpx = (int)Math.Ceiling((_wantW ?? _window.Width) * scale);
+                var hpx = (int)Math.Ceiling((_wantH ?? _window.Height) * scale);
+
+                var pt = new PixelPoint(x, y);
+                var target = screens.ScreenFromPoint(pt) ?? screens.Primary ?? screens.All[0];
+                var area = target.WorkingArea;
+
+                var maxX = area.X + Math.Max(0, area.Width - wpx);
+                var maxY = area.Y + Math.Max(0, area.Height - hpx);
+                x = Math.Clamp(x, area.X, maxX);
+                y = Math.Clamp(y, area.Y, maxY);
+            }
+        }
+        catch
+        {
+            // 화면 정보 못 읽어도 저장값 그대로 사용.
+        }
+
+        _window.Position = new PixelPoint(x, y);
     }
 
     public (double Width, double Height) GetSize()
