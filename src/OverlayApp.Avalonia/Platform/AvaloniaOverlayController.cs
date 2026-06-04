@@ -11,6 +11,12 @@ public sealed class AvaloniaOverlayController : IOverlayController
     private IntPtr _hwnd = IntPtr.Zero;
     private bool _desiredClickThrough = true;
 
+    // 복원 값. 창이 열리기 전에 들어오면 보관했다가 Opened에서 적용.
+    private double? _wantX, _wantY, _wantW, _wantH;
+
+    // 창 Opened 이후에만 위치/크기 변경을 바깥으로 알린다(시작 시 복원 노이즈 저장 방지).
+    private bool _ready;
+
     public event EventHandler? PositionChanged;
 
     public event EventHandler? SizeChanged;
@@ -19,8 +25,8 @@ public sealed class AvaloniaOverlayController : IOverlayController
     {
         _window = window;
         _window.Opened += OnWindowOpened;
-        _window.PositionChanged += (_, _) => PositionChanged?.Invoke(this, EventArgs.Empty);
-        _window.Resized += (_, _) => SizeChanged?.Invoke(this, EventArgs.Empty);
+        _window.PositionChanged += (_, _) => { if (_ready) PositionChanged?.Invoke(this, EventArgs.Empty); };
+        _window.Resized += (_, _) => { if (_ready) SizeChanged?.Invoke(this, EventArgs.Empty); };
     }
 
     private void OnWindowOpened(object? sender, EventArgs e)
@@ -31,6 +37,12 @@ public sealed class AvaloniaOverlayController : IOverlayController
 
         Win32Interop.AddExStyle(_hwnd, Win32Interop.WS_EX_TOOLWINDOW | Win32Interop.WS_EX_NOACTIVATE);
         ApplyClickThrough();
+
+        // 핸들이 생긴 뒤에 크기 → 위치 순으로 복원 (위치를 나중에 잡아 WM 이동 보정).
+        ApplySize();
+        ApplyPosition();
+
+        _ready = true;
     }
 
     public bool IsVisible => _window?.IsVisible ?? false;
@@ -77,8 +89,15 @@ public sealed class AvaloniaOverlayController : IOverlayController
 
     public void SetPosition(double x, double y)
     {
-        if (_window is null) return;
-        _window.Position = new PixelPoint((int)x, (int)y);
+        _wantX = x;
+        _wantY = y;
+        if (_ready) ApplyPosition();
+    }
+
+    private void ApplyPosition()
+    {
+        if (_window is null || _wantX is not double x || _wantY is not double y) return;
+        _window.Position = new PixelPoint((int)Math.Round(x), (int)Math.Round(y));
     }
 
     public (double Width, double Height) GetSize()
@@ -89,8 +108,15 @@ public sealed class AvaloniaOverlayController : IOverlayController
 
     public void SetSize(double width, double height)
     {
+        if (width > 0) _wantW = width;
+        if (height > 0) _wantH = height;
+        if (_ready) ApplySize();
+    }
+
+    private void ApplySize()
+    {
         if (_window is null) return;
-        if (width > 0) _window.Width = width;
-        if (height > 0) _window.Height = height;
+        if (_wantW is double w && w > 0) _window.Width = w;
+        if (_wantH is double h && h > 0) _window.Height = h;
     }
 }
