@@ -1,5 +1,6 @@
 using System;
 using Avalonia;
+using Avalonia.Threading;
 using OverlayApp.Avalonia.Views;
 using OverlayApp.Core.Abstractions;
 
@@ -17,6 +18,9 @@ public sealed class AvaloniaOverlayController : IOverlayController
     // 창 Opened 이후에만 위치/크기 변경을 바깥으로 알린다(시작 시 복원 노이즈 저장 방지).
     private bool _ready;
 
+    // 프로그램이 위치/크기를 적용하는 동안엔 사용자 변경으로 오인해 저장하지 않게 막는다.
+    private bool _applying;
+
     public event EventHandler? PositionChanged;
 
     public event EventHandler? SizeChanged;
@@ -25,8 +29,8 @@ public sealed class AvaloniaOverlayController : IOverlayController
     {
         _window = window;
         _window.Opened += OnWindowOpened;
-        _window.PositionChanged += (_, _) => { if (_ready) PositionChanged?.Invoke(this, EventArgs.Empty); };
-        _window.Resized += (_, _) => { if (_ready) SizeChanged?.Invoke(this, EventArgs.Empty); };
+        _window.PositionChanged += (_, _) => { if (_ready && !_applying) PositionChanged?.Invoke(this, EventArgs.Empty); };
+        _window.Resized += (_, _) => { if (_ready && !_applying) SizeChanged?.Invoke(this, EventArgs.Empty); };
     }
 
     private void OnWindowOpened(object? sender, EventArgs e)
@@ -38,11 +42,32 @@ public sealed class AvaloniaOverlayController : IOverlayController
         Win32Interop.AddExStyle(_hwnd, Win32Interop.WS_EX_TOOLWINDOW | Win32Interop.WS_EX_NOACTIVATE);
         ApplyClickThrough();
 
-        // 핸들이 생긴 뒤에 크기 → 위치 순으로 복원 (위치를 나중에 잡아 WM 이동 보정).
+        // 핸들이 생긴 뒤에 크기 → 위치 순으로 복원.
         ApplySize();
-        ApplyPosition();
+        ApplyPosition(forceVisible: false);
 
         _ready = true;
+
+        // 부팅 자동시작 시 보조 모니터가 늦게 붙는 경우, 복원 시점엔 해당 화면이
+        // 아직 없어서 좌표가 화면 밖으로 판정될 수 있다. 잠시 동안 몇 번 더
+        // 재적용하여 모니터가 준비된 뒤 원래 자리로 맞춘다. 마지막 시도에서만
+        // 그래도 화면 밖이면 Primary로 강제 보정.
+        ScheduleRestoreRetries();
+    }
+
+    private void ScheduleRestoreRetries()
+    {
+        var attempts = 0;
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
+        timer.Tick += (_, _) =>
+        {
+            attempts++;
+            var last = attempts >= 4;
+            ApplySize();
+            ApplyPosition(forceVisible: last);
+            if (last) timer.Stop();
+        };
+        timer.Start();
     }
 
     public bool IsVisible => _window?.IsVisible ?? false;
@@ -91,31 +116,43 @@ public sealed class AvaloniaOverlayController : IOverlayController
     {
         _wantX = x;
         _wantY = y;
-        if (_ready) ApplyPosition();
+        if (_ready) ApplyPosition(forceVisible: true);
     }
 
-    private void ApplyPosition()
+    private void ApplyPosition(bool forceVisible)
     {
         if (_window is null || _wantX is not double wx || _wantY is not double wy) return;
 
         var x = (int)Math.Round(wx);
         var y = (int)Math.Round(wy);
 
-        // 멀티 모니터: 저장된 좌표가 현재 화면 밖이면 보이는 영역 안으로 보정.
         try
         {
             var screens = _window.Screens;
             if (screens is not null && screens.All.Count > 0)
             {
+                var pt = new PixelPoint(x, y);
+                var target = screens.ScreenFromPoint(pt);
+
+                // 좌표를 담은 화면이 아직 없으면(부팅 시 보조 모니터 미준비):
+                //  - 일반 시도: 손대지 않고 저장값 그대로 둔다(다음 재시도에서 맞춤).
+                //  - 마지막 시도/사용자 호출: Primary로 강제 보정해 최소한 보이게.
+                if (target is null)
+                {
+                    if (!forceVisible)
+                    {
+                        SetPositionRaw(x, y);
+                        return;
+                    }
+                    target = screens.Primary ?? screens.All[0];
+                }
+
                 var scale = _window.RenderScaling;
                 if (scale <= 0) scale = 1;
                 var wpx = (int)Math.Ceiling((_wantW ?? _window.Width) * scale);
                 var hpx = (int)Math.Ceiling((_wantH ?? _window.Height) * scale);
 
-                var pt = new PixelPoint(x, y);
-                var target = screens.ScreenFromPoint(pt) ?? screens.Primary ?? screens.All[0];
                 var area = target.WorkingArea;
-
                 var maxX = area.X + Math.Max(0, area.Width - wpx);
                 var maxY = area.Y + Math.Max(0, area.Height - hpx);
                 x = Math.Clamp(x, area.X, maxX);
@@ -127,8 +164,23 @@ public sealed class AvaloniaOverlayController : IOverlayController
             // 화면 정보 못 읽어도 저장값 그대로 사용.
         }
 
-        _window.Position = new PixelPoint(x, y);
+        SetPositionRaw(x, y);
     }
+
+    private void SetPositionRaw(int x, int y)
+    {
+        if (_window is null) return;
+        BeginApplying();
+        _window.Position = new PixelPoint(x, y);
+        EndApplyingDeferred();
+    }
+
+    // 위치/크기 변경은 플랫폼에서 비동기로 되돌아올 수 있어, 다음 디스패처
+    // 사이클까지 _applying을 유지해 프로그램 변경이 저장으로 오인되지 않게 한다.
+    private void BeginApplying() => _applying = true;
+
+    private void EndApplyingDeferred()
+        => Dispatcher.UIThread.Post(() => _applying = false, DispatcherPriority.Background);
 
     public (double Width, double Height) GetSize()
     {
@@ -146,7 +198,9 @@ public sealed class AvaloniaOverlayController : IOverlayController
     private void ApplySize()
     {
         if (_window is null) return;
+        BeginApplying();
         if (_wantW is double w && w > 0) _window.Width = w;
         if (_wantH is double h && h > 0) _window.Height = h;
+        EndApplyingDeferred();
     }
 }
