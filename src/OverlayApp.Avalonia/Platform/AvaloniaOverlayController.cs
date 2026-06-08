@@ -237,7 +237,8 @@ public sealed class AvaloniaOverlayController : IOverlayController
         var scale = screen.Scaling;
         if (scale <= 0) scale = 1;
 
-        const double marginDip = 12;
+        // 가장자리에 밀착. WorkingArea는 작업표시줄을 제외한 영역이라 0이어도 안 겹침.
+        const double marginDip = 0;
         var marginPx = (int)Math.Round(marginDip * scale);
         var wpx = (int)Math.Ceiling((_wantW ?? _window.Width) * scale);
         var hpx = (int)Math.Ceiling((_wantH ?? _window.Height) * scale);
