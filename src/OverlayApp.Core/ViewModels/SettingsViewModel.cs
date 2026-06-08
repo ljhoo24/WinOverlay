@@ -35,6 +35,11 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool _isAdjustMode;
 
+    public ObservableCollection<MonitorInfo> Monitors { get; } = new();
+
+    [ObservableProperty]
+    private MonitorInfo? _selectedMonitor;
+
     public HotkeyEditorViewModel ToggleHotkeyEditor { get; }
 
     public HotkeyEditorViewModel OpenSettingsHotkeyEditor { get; }
@@ -129,6 +134,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _hotkeysEnabled = _settings.HotkeysEnabled;
         _opacityPercent = (int)(_settings.Overlay.Opacity * 100);
         _isAdjustMode = _overlay.IsAdjustMode;
+
+        RefreshMonitors();
 
         Func<bool> isMaster = () => _hotkeysEnabled;
         ToggleHotkeyEditor = new HotkeyEditorViewModel(
@@ -362,6 +369,41 @@ public sealed partial class SettingsViewModel : ObservableObject
             _settings.Overlay.Visible = true;
             Persist();
         }
+    }
+
+    [RelayCommand]
+    private void RefreshMonitors()
+    {
+        var prev = SelectedMonitor?.Index;
+        Monitors.Clear();
+        foreach (var m in _controller.GetMonitors()) Monitors.Add(m);
+        SelectedMonitor =
+            Monitors.FirstOrDefault(m => m.Index == prev)
+            ?? Monitors.FirstOrDefault(m => m.IsPrimary)
+            ?? Monitors.FirstOrDefault();
+    }
+
+    [RelayCommand]
+    private void SnapCorner(string? corner)
+    {
+        if (Monitors.Count == 0) RefreshMonitors();
+        var monitor = SelectedMonitor ?? Monitors.FirstOrDefault();
+        if (monitor is null) return;
+        if (!Enum.TryParse<OverlayCorner>(corner, out var c)) return;
+
+        _controller.SnapToCorner(monitor.Index, c);
+
+        // SnapToCorner은 프로그램 변경이라 PositionChanged 자동저장 경로를 타지 않음 → 직접 저장.
+        var (x, y) = _controller.GetPosition();
+        _settings.Overlay.X = x;
+        _settings.Overlay.Y = y;
+
+        if (!_controller.IsVisible)
+        {
+            _controller.Show();
+            _settings.Overlay.Visible = true;
+        }
+        Persist();
     }
 
     partial void OnUse24HourChanged(bool value)

@@ -49,6 +49,32 @@
                                       OffContent="조정 모드 OFF" />
                     </StackPanel>
 
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="프리셋 위치" FontWeight="SemiBold" />
+                        <TextBlock Text="선택한 모니터의 네 꼭지점에 오버레이를 맞춥니다 (가장자리 여백 포함)."
+                                   TextWrapping="Wrap" Opacity="0.75" FontSize="12" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
+                                      ItemsSource="{Binding Monitors}"
+                                      SelectedItem="{Binding SelectedMonitor}" />
+                            <Button Grid.Column="1" Content="새로고침" Command="{Binding RefreshMonitorsCommand}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
+                            <Button Grid.Row="0" Grid.Column="0" Content="↖ 좌상단"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                    Command="{Binding SnapCornerCommand}" CommandParameter="TopLeft" />
+                            <Button Grid.Row="0" Grid.Column="1" Content="↗ 우상단"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                    Command="{Binding SnapCornerCommand}" CommandParameter="TopRight" />
+                            <Button Grid.Row="1" Grid.Column="0" Content="↙ 좌하단"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                    Command="{Binding SnapCornerCommand}" CommandParameter="BottomLeft" />
+                            <Button Grid.Row="1" Grid.Column="1" Content="↘ 우하단"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                    Command="{Binding SnapCornerCommand}" CommandParameter="BottomRight" />
+                        </Grid>
+                    </StackPanel>
+
                     <StackPanel Spacing="6">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0" Text="불투명도" FontWeight="SemiBold" />

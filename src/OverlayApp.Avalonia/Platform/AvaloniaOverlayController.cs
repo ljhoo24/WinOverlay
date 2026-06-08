@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Threading;
 using OverlayApp.Avalonia.Views;
 using OverlayApp.Core.Abstractions;
+using OverlayApp.Core.Models;
 
 namespace OverlayApp.Avalonia.Platform;
 
@@ -202,5 +204,61 @@ public sealed class AvaloniaOverlayController : IOverlayController
         if (_wantW is double w && w > 0) _window.Width = w;
         if (_wantH is double h && h > 0) _window.Height = h;
         EndApplyingDeferred();
+    }
+
+    public IReadOnlyList<MonitorInfo> GetMonitors()
+    {
+        var list = new List<MonitorInfo>();
+        var screens = _window?.Screens;
+        if (screens is null) return list;
+        for (var i = 0; i < screens.All.Count; i++)
+        {
+            var s = screens.All[i];
+            list.Add(new MonitorInfo
+            {
+                Index = i,
+                IsPrimary = s.IsPrimary,
+                PixelWidth = s.Bounds.Width,
+                PixelHeight = s.Bounds.Height,
+            });
+        }
+        return list;
+    }
+
+    public void SnapToCorner(int monitorIndex, OverlayCorner corner)
+    {
+        if (_window is null) return;
+        var screens = _window.Screens;
+        if (screens is null || screens.All.Count == 0) return;
+
+        var idx = Math.Clamp(monitorIndex, 0, screens.All.Count - 1);
+        var screen = screens.All[idx];
+
+        var scale = screen.Scaling;
+        if (scale <= 0) scale = 1;
+
+        const double marginDip = 12;
+        var marginPx = (int)Math.Round(marginDip * scale);
+        var wpx = (int)Math.Ceiling((_wantW ?? _window.Width) * scale);
+        var hpx = (int)Math.Ceiling((_wantH ?? _window.Height) * scale);
+
+        var area = screen.WorkingArea;
+        var left = area.X + marginPx;
+        var top = area.Y + marginPx;
+        var right = area.X + Math.Max(0, area.Width - wpx - marginPx);
+        var bottom = area.Y + Math.Max(0, area.Height - hpx - marginPx);
+
+        var (x, y) = corner switch
+        {
+            OverlayCorner.TopLeft => (left, top),
+            OverlayCorner.TopRight => (right, top),
+            OverlayCorner.BottomLeft => (left, bottom),
+            OverlayCorner.BottomRight => (right, bottom),
+            _ => (left, top),
+        };
+
+        _wantX = x;
+        _wantY = y;
+        SetPositionRaw(x, y);
     }
 }
