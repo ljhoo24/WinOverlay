@@ -59,6 +59,11 @@
                                       SelectedItem="{Binding SelectedMonitor}" />
                             <Button Grid.Column="1" Content="새로고침" Command="{Binding RefreshMonitorsCommand}" />
                         </Grid>
+                        <Grid ColumnDefinitions="Auto,120" ColumnSpacing="8">
+                            <TextBlock Grid.Column="0" Text="가장자리 여백(px)" VerticalAlignment="Center" />
+                            <NumericUpDown Grid.Column="1" Minimum="0" Maximum="20" Increment="1"
+                                           Value="{Binding PresetMargin}" />
+                        </Grid>
                         <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="8">
                             <Button Grid.Row="0" Grid.Column="0" Content="↖ 좌상단"
                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"

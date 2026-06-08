@@ -225,7 +225,7 @@ public sealed class AvaloniaOverlayController : IOverlayController
         return list;
     }
 
-    public void SnapToCorner(int monitorIndex, OverlayCorner corner)
+    public void SnapToCorner(int monitorIndex, OverlayCorner corner, int marginDip)
     {
         if (_window is null) return;
         var screens = _window.Screens;
@@ -237,11 +237,17 @@ public sealed class AvaloniaOverlayController : IOverlayController
         var scale = screen.Scaling;
         if (scale <= 0) scale = 1;
 
-        // 가장자리에 밀착. WorkingArea는 작업표시줄을 제외한 영역이라 0이어도 안 겹침.
-        const double marginDip = 0;
-        var marginPx = (int)Math.Round(marginDip * scale);
-        var wpx = (int)Math.Ceiling((_wantW ?? _window.Width) * scale);
-        var hpx = (int)Math.Ceiling((_wantH ?? _window.Height) * scale);
+        // WorkingArea는 작업표시줄 제외 영역이라 여백 0이어도 작업표시줄과 안 겹침.
+        var margin = Math.Clamp(marginDip, 0, 20);
+        var marginPx = (int)Math.Round(margin * scale);
+
+        // 사용자가 테두리 드래그로 리사이즈하면 _wantW/_wantH는 갱신되지 않으므로
+        // 실제 현재 크기(ClientSize)를 우선 사용해야 구석에 정확히 맞는다.
+        var cs = _window.ClientSize;
+        var w = cs.Width > 0 ? cs.Width : (_wantW ?? _window.Width);
+        var h = cs.Height > 0 ? cs.Height : (_wantH ?? _window.Height);
+        var wpx = (int)Math.Ceiling(w * scale);
+        var hpx = (int)Math.Ceiling(h * scale);
 
         var area = screen.WorkingArea;
         var left = area.X + marginPx;

@@ -104,6 +104,9 @@ public sealed class OverlaySettings
     public double Height { get; set; } = 80;
 
     public double Opacity { get; set; } = 0.85;
+
+    /// <summary>프리셋(꼭지점) 스냅 시 가장자리 여백(px). 0~20.</summary>
+    public int PresetMargin { get; set; } = 0;
 }
 
 public sealed class ClockSettings

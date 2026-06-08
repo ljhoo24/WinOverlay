@@ -40,6 +40,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private MonitorInfo? _selectedMonitor;
 
+    [ObservableProperty]
+    private int _presetMargin;
+
     public HotkeyEditorViewModel ToggleHotkeyEditor { get; }
 
     public HotkeyEditorViewModel OpenSettingsHotkeyEditor { get; }
@@ -134,6 +137,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _hotkeysEnabled = _settings.HotkeysEnabled;
         _opacityPercent = (int)(_settings.Overlay.Opacity * 100);
         _isAdjustMode = _overlay.IsAdjustMode;
+        _presetMargin = _settings.Overlay.PresetMargin;
 
         RefreshMonitors();
 
@@ -371,6 +375,13 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
     }
 
+    partial void OnPresetMarginChanged(int value)
+    {
+        var clamped = System.Math.Clamp(value, 0, 20);
+        _settings.Overlay.PresetMargin = clamped;
+        Persist();
+    }
+
     [RelayCommand]
     private void RefreshMonitors()
     {
@@ -391,7 +402,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (monitor is null) return;
         if (!Enum.TryParse<OverlayCorner>(corner, out var c)) return;
 
-        _controller.SnapToCorner(monitor.Index, c);
+        _controller.SnapToCorner(monitor.Index, c, _settings.Overlay.PresetMargin);
 
         // SnapToCorner은 프로그램 변경이라 PositionChanged 자동저장 경로를 타지 않음 → 직접 저장.
         var (x, y) = _controller.GetPosition();
