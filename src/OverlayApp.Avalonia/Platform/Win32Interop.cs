@@ -11,6 +11,12 @@ internal static class Win32Interop
     public const int WS_EX_TOOLWINDOW = 0x00000080;
     public const int WS_EX_NOACTIVATE = 0x08000000;
 
+    public static readonly IntPtr HWND_TOPMOST = new(-1);
+    public const uint SWP_NOSIZE = 0x0001;
+    public const uint SWP_NOMOVE = 0x0002;
+    public const uint SWP_NOACTIVATE = 0x0010;
+    public const uint SWP_NOOWNERZORDER = 0x0200;
+
     [DllImport("user32.dll", SetLastError = true, EntryPoint = "GetWindowLongPtrW")]
     private static extern IntPtr GetWindowLongPtr64(IntPtr hWnd, int nIndex);
 
@@ -42,5 +48,18 @@ internal static class Win32Interop
     {
         var current = GetWindowLong(hWnd, GWL_EXSTYLE);
         SetWindowLong(hWnd, GWL_EXSTYLE, current & ~flag);
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+
+    /// <summary>이동/크기/활성화 없이 z-order만 최상위로 다시 올린다.</summary>
+    public static void ReassertTopmost(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero) return;
+        SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
     }
 }

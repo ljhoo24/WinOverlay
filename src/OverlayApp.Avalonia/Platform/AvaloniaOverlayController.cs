@@ -13,6 +13,8 @@ public sealed class AvaloniaOverlayController : IOverlayController
     private OverlayWindow? _window;
     private IntPtr _hwnd = IntPtr.Zero;
     private bool _desiredClickThrough = true;
+    private bool _desiredTopmost = true;
+    private DispatcherTimer? _topmostTimer;
 
     // 복원 값. 창이 열리기 전에 들어오면 보관했다가 Opened에서 적용.
     private double? _wantX, _wantY, _wantW, _wantH;
@@ -49,6 +51,10 @@ public sealed class AvaloniaOverlayController : IOverlayController
         ApplyPosition(forceVisible: false);
 
         _ready = true;
+
+        // Topmost는 다른 앱이 자기 창을 HWND_TOPMOST로 올리면 그 아래로 밀릴 수 있다
+        // (특히 WS_EX_NOACTIVATE라 활성화로 z-order가 안 올라옴). 주기적으로 재선언.
+        StartTopmostWatch();
 
         // 부팅 자동시작 시 보조 모니터가 늦게 붙는 경우, 복원 시점엔 해당 화면이
         // 아직 없어서 좌표가 화면 밖으로 판정될 수 있다. 잠시 동안 몇 번 더
@@ -104,8 +110,22 @@ public sealed class AvaloniaOverlayController : IOverlayController
 
     public void SetTopMost(bool enabled)
     {
+        _desiredTopmost = enabled;
         if (_window is null) return;
         _window.Topmost = enabled;
+        if (enabled) Win32Interop.ReassertTopmost(_hwnd);
+    }
+
+    private void StartTopmostWatch()
+    {
+        _topmostTimer?.Stop();
+        _topmostTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
+        _topmostTimer.Tick += (_, _) =>
+        {
+            if (_desiredTopmost && _hwnd != IntPtr.Zero && (_window?.IsVisible ?? false))
+                Win32Interop.ReassertTopmost(_hwnd);
+        };
+        _topmostTimer.Start();
     }
 
     public (double X, double Y) GetPosition()
