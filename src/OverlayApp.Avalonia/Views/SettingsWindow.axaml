@@ -110,7 +110,15 @@
         <TabItem Header="시간">
             <ScrollViewer>
                 <StackPanel Margin="16" Spacing="20">
-                    <CheckBox Content="24시간 형식" IsChecked="{Binding Use24Hour}" />
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="시간 표시 형식" FontWeight="SemiBold" />
+                        <StackPanel Orientation="Horizontal" Spacing="16">
+                            <RadioButton GroupName="ClockFormat" Content="24시간 (13:05:30)"
+                                         IsChecked="{Binding Use24Hour}" />
+                            <RadioButton GroupName="ClockFormat" Content="12시간 (1:05:30 오후)"
+                                         IsChecked="{Binding !Use24Hour}" />
+                        </StackPanel>
+                    </StackPanel>
 
                     <StackPanel Spacing="6">
                         <TextBlock Text="세계 시간" FontWeight="SemiBold" />
