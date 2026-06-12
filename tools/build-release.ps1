@@ -47,6 +47,7 @@ if (Test-Path $distDir) { Remove-Item $distDir -Recurse -Force }
 Write-Host "[1/2] dotnet publish ..." -ForegroundColor Yellow
 dotnet publish $proj `
     -c Release `
+    -f net8.0-windows `
     -r win-x64 `
     --self-contained true `
     -p:PublishSingleFile=true `

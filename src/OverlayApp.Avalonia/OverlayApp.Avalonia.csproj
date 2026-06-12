@@ -1,12 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <!-- net8.0-windows: Windows 배포용(레지스트리/LHM 등). net8.0: macOS 등 비-Windows 빌드용. -->
+    <TargetFrameworks>net8.0-windows;net8.0</TargetFrameworks>
     <UseWindowsForms>false</UseWindowsForms>
     <UseWPF>false</UseWPF>
     <Nullable>enable</Nullable>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <ApplicationManifest Condition="'$(TargetFramework)' == 'net8.0-windows'">app.manifest</ApplicationManifest>
+    <ApplicationIcon Condition="'$(TargetFramework)' == 'net8.0-windows'">Assets\app.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AssemblyName>WinOverlay</AssemblyName>
     <RootNamespace>OverlayApp.Avalonia</RootNamespace>
@@ -27,8 +28,18 @@
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6"
+                      Condition="'$(TargetFramework)' == 'net8.0-windows'" />
     <PackageReference Include="Velopack" Version="1.1.1" />
+  </ItemGroup>
+
+  <!-- Windows 전용 구현은 비-Windows 타깃에서 제외 (Registry/WindowsIdentity/LHM은 net8.0에 없음). -->
+  <ItemGroup Condition="'$(TargetFramework)' != 'net8.0-windows'">
+    <Compile Remove="Platform\Win32Interop.cs" />
+    <Compile Remove="Platform\Win32GlobalHotkeyService.cs" />
+    <Compile Remove="Platform\WindowsElevationService.cs" />
+    <Compile Remove="Platform\WindowsStartupService.cs" />
+    <Compile Remove="Platform\WindowsSystemMetricsService.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -12,9 +12,12 @@ public sealed class AvaloniaOverlayController : IOverlayController
 {
     private OverlayWindow? _window;
     private IntPtr _hwnd = IntPtr.Zero;
+    private IntPtr _nsWindow = IntPtr.Zero;
     private bool _desiredClickThrough = true;
     private bool _desiredTopmost = true;
+#if WINDOWS
     private DispatcherTimer? _topmostTimer;
+#endif
 
     // 복원 값. 창이 열리기 전에 들어오면 보관했다가 Opened에서 적용.
     private double? _wantX, _wantY, _wantW, _wantH;
@@ -43,7 +46,15 @@ public sealed class AvaloniaOverlayController : IOverlayController
         if (handle is null) return;
         _hwnd = handle.Handle;
 
+#if WINDOWS
         Win32Interop.AddExStyle(_hwnd, Win32Interop.WS_EX_TOOLWINDOW | Win32Interop.WS_EX_NOACTIVATE);
+#else
+        if (handle is global::Avalonia.Platform.IMacOSTopLevelPlatformHandle mac)
+        {
+            _nsWindow = mac.NSWindow;
+        }
+        if (_desiredTopmost) MacInterop.SetStatusLevel(_nsWindow);
+#endif
         ApplyClickThrough();
 
         // 핸들이 생긴 뒤에 크기 → 위치 순으로 복원.
@@ -92,6 +103,7 @@ public sealed class AvaloniaOverlayController : IOverlayController
 
     private void ApplyClickThrough()
     {
+#if WINDOWS
         if (_desiredClickThrough)
         {
             Win32Interop.AddExStyle(_hwnd, Win32Interop.WS_EX_TRANSPARENT | Win32Interop.WS_EX_LAYERED);
@@ -100,6 +112,9 @@ public sealed class AvaloniaOverlayController : IOverlayController
         {
             Win32Interop.RemoveExStyle(_hwnd, Win32Interop.WS_EX_TRANSPARENT);
         }
+#else
+        MacInterop.SetIgnoresMouseEvents(_nsWindow, _desiredClickThrough);
+#endif
     }
 
     public void SetOpacity(double value)
@@ -113,11 +128,16 @@ public sealed class AvaloniaOverlayController : IOverlayController
         _desiredTopmost = enabled;
         if (_window is null) return;
         _window.Topmost = enabled;
+#if WINDOWS
         if (enabled) Win32Interop.ReassertTopmost(_hwnd);
+#else
+        if (enabled) MacInterop.SetStatusLevel(_nsWindow);
+#endif
     }
 
     private void StartTopmostWatch()
     {
+#if WINDOWS
         _topmostTimer?.Stop();
         _topmostTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
         _topmostTimer.Tick += (_, _) =>
@@ -126,6 +146,9 @@ public sealed class AvaloniaOverlayController : IOverlayController
                 Win32Interop.ReassertTopmost(_hwnd);
         };
         _topmostTimer.Start();
+#else
+        // macOS는 NSWindow.level이 유지되므로 주기 재선언이 필요 없다.
+#endif
     }
 
     public (double X, double Y) GetPosition()

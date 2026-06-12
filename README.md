@@ -88,6 +88,30 @@ dotnet tool install -g vpk
 
 자동 업데이트 서버 연동은 아직 구성하지 않았습니다(Velopack 패키지는 만들지만 업로드 위치 미설정). 추후 GitHub Releases에 `dist/`를 업로드하면 `UpdateManager`를 통해 자동 업데이트 가능합니다.
 
+## macOS 빌드 (본인용)
+
+프로젝트는 `net8.0-windows`(Windows 배포) + `net8.0`(비-Windows) 멀티타깃입니다. Mac에서:
+
+```bash
+git clone https://github.com/ljhoo24/WinOverlay.git && cd WinOverlay
+./tools/build-macos.sh              # Apple Silicon
+./tools/build-macos.sh osx-x64     # Intel Mac
+./publish-macos/WinOverlay          # 실행
+```
+
+전제: macOS에 [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) 설치. 직접 빌드한 바이너리라 서명/공증 불필요.
+
+macOS 기능 차이:
+
+| 기능 | 상태 |
+|---|---|
+| 시계/세계시간/날씨/타이머/트레이/불투명도 | 동작 |
+| 클릭 통과 / 항상 위 | `NSWindow.ignoresMouseEvents` / `setLevel:` 로 구현 |
+| 자동 시작 | `~/Library/LaunchAgents` plist |
+| 전역 단축키 | **미구현** — 트레이 메뉴로 토글 (Carbon 핫키 추후 과제) |
+| 메모리 사용률 | `sysctl`/`vm_stat` 로 동작 |
+| CPU 사용률, CPU/GPU 온도 | **미지원** (LibreHardwareMonitor가 Windows 전용) |
+
 ## 사용
 
 - **첫 실행**: 트레이에 아이콘이 표시되고, 오버레이가 좌상단에 나타납니다.

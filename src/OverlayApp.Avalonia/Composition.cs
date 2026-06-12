@@ -26,11 +26,18 @@ public static class Composition
         services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         services.AddSingleton<AvaloniaOverlayController>();
         services.AddSingleton<IOverlayController>(sp => sp.GetRequiredService<AvaloniaOverlayController>());
-        services.AddSingleton<IGlobalHotkeyService, Win32GlobalHotkeyService>();
         services.AddSingleton<ITrayService, AvaloniaTrayService>();
+#if WINDOWS
+        services.AddSingleton<IGlobalHotkeyService, Win32GlobalHotkeyService>();
         services.AddSingleton<IStartupService, WindowsStartupService>();
         services.AddSingleton<IElevationService, WindowsElevationService>();
         services.AddSingleton<ISystemMetricsService, WindowsSystemMetricsService>();
+#else
+        services.AddSingleton<IGlobalHotkeyService, MacGlobalHotkeyService>();
+        services.AddSingleton<IStartupService, MacStartupService>();
+        services.AddSingleton<IElevationService, MacElevationService>();
+        services.AddSingleton<ISystemMetricsService, MacSystemMetricsService>();
+#endif
 
         // Core services.
         services.AddSingleton<System.Net.Http.HttpClient>(_ =>
