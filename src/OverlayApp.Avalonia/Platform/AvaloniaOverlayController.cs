@@ -292,11 +292,11 @@ public sealed class AvaloniaOverlayController : IOverlayController
         var wpx = (int)Math.Ceiling(w * scale);
         var hpx = (int)Math.Ceiling(h * scale);
 
-        var area = screen.WorkingArea;
-        var left = area.X + marginPx;
-        var top = area.Y + marginPx;
-        var right = area.X + Math.Max(0, area.Width - wpx - marginPx);
-        var bottom = area.Y + Math.Max(0, area.Height - hpx - marginPx);
+        var (ax, ay, aw, ah) = GetWorkArea(screen);
+        var left = ax + marginPx;
+        var top = ay + marginPx;
+        var right = ax + Math.Max(0, aw - wpx - marginPx);
+        var bottom = ay + Math.Max(0, ah - hpx - marginPx);
 
         var (x, y) = corner switch
         {
@@ -310,5 +310,21 @@ public sealed class AvaloniaOverlayController : IOverlayController
         _wantX = x;
         _wantY = y;
         SetPositionRaw(x, y);
+    }
+
+    /// <summary>대상 모니터의 작업영역(작업표시줄 제외)을 물리 픽셀로 반환.</summary>
+    private static (int X, int Y, int W, int H) GetWorkArea(global::Avalonia.Platform.Screen screen)
+    {
+#if WINDOWS
+        // Avalonia WorkingArea가 작업표시줄(특히 상단/측면)을 반영 못하는 환경 대비,
+        // Win32 GetMonitorInfo.rcWork로 진짜 작업영역을 조회한다.
+        var b = screen.Bounds;
+        var cx = b.X + (b.Width / 2);
+        var cy = b.Y + (b.Height / 2);
+        if (Win32Interop.TryGetWorkArea(cx, cy, out var x, out var y, out var w, out var h))
+            return (x, y, w, h);
+#endif
+        var wa = screen.WorkingArea;
+        return (wa.X, wa.Y, wa.Width, wa.Height);
     }
 }
