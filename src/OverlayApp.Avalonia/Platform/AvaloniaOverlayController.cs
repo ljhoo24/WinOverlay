@@ -36,8 +36,24 @@ public sealed class AvaloniaOverlayController : IOverlayController
     {
         _window = window;
         _window.Opened += OnWindowOpened;
-        _window.PositionChanged += (_, _) => { if (_ready && !_applying) PositionChanged?.Invoke(this, EventArgs.Empty); };
-        _window.Resized += (_, _) => { if (_ready && !_applying) SizeChanged?.Invoke(this, EventArgs.Empty); };
+        // 사용자 이동/리사이즈 시 실제값을 _want*에 반영해, 숨김→표시나 재시작에서
+        // 마지막 상태로 정확히 복원되게 한다(드래그는 _window.Width 등을 갱신하지 않음).
+        _window.PositionChanged += (_, _) =>
+        {
+            if (!_ready || _applying) return;
+            var p = _window.Position;
+            _wantX = p.X;
+            _wantY = p.Y;
+            PositionChanged?.Invoke(this, EventArgs.Empty);
+        };
+        _window.Resized += (_, _) =>
+        {
+            if (!_ready || _applying) return;
+            var cs = _window.ClientSize;
+            if (cs.Width > 0) _wantW = cs.Width;
+            if (cs.Height > 0) _wantH = cs.Height;
+            SizeChanged?.Invoke(this, EventArgs.Empty);
+        };
     }
 
     private void OnWindowOpened(object? sender, EventArgs e)
@@ -91,7 +107,17 @@ public sealed class AvaloniaOverlayController : IOverlayController
 
     public bool IsVisible => _window?.IsVisible ?? false;
 
-    public void Show() => _window?.Show();
+    public void Show()
+    {
+        if (_window is null) return;
+        _window.Show();
+        // Avalonia가 표시 시 XAML 기본 크기로 되돌릴 수 있어, 마지막 크기/위치를 재적용.
+        if (_ready)
+        {
+            ApplySize();
+            ApplyPosition(forceVisible: true);
+        }
+    }
 
     public void Hide() => _window?.Hide();
 
@@ -230,7 +256,9 @@ public sealed class AvaloniaOverlayController : IOverlayController
     public (double Width, double Height) GetSize()
     {
         if (_window is null) return (0, 0);
-        return (_window.Width, _window.Height);
+        // 드래그 리사이즈는 Width/Height를 갱신하지 않으므로 실제 크기(ClientSize)를 반환.
+        var cs = _window.ClientSize;
+        return (cs.Width, cs.Height);
     }
 
     public void SetSize(double width, double height)
